@@ -1,0 +1,17 @@
+__pycache__/
+*.pyc
+*.pyo
+.coverage
+htmlcov/
+data/*.db
+data/*.db-shm
+data/*.db-wal
+data/notion_sync_state.json
+data/archive/
+.env
+.env.*
+*.egg-info/
+dist/
+build/
+skill-optimization-workspace/
+.claude/worktrees/
