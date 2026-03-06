@@ -58,6 +58,13 @@ def parse_h1b_status(text: str) -> H1BStatus:
     text_lower = text.lower()
     if "confirmed" in text_lower or "✅" in text:
         return H1BStatus.CONFIRMED
+    # Frog Hire and sponsorship-specific patterns → CONFIRMED
+    if "frog hire" in text_lower:
+        return H1BStatus.CONFIRMED
+    if "h1b+perm" in text_lower:
+        return H1BStatus.CONFIRMED
+    if "h1b sponsor" in text_lower:
+        return H1BStatus.CONFIRMED
     if "likely" in text_lower:
         return H1BStatus.LIKELY
     if "explicit no" in text_lower or "does not sponsor" in text_lower:
@@ -329,6 +336,12 @@ def seed_database(
         audit["inserted"] += 1
 
     session.commit()
+
+    from src.db.h1b_lookup import apply_known_statuses
+    enriched = apply_known_statuses(session)
+    audit["h1b_enriched"] = enriched
+    logger.info(f"H1B enriched: {enriched} companies updated from known lookup")
+
     session.close()
 
     logger.info(f"Seeded {audit['inserted']} companies into {db_path}")

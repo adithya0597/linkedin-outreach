@@ -26,7 +26,7 @@ Before drafting, gather or look up:
 5. **Role being targeted** (if specific job posting exists)
 6. **Communication style cues** (formal vs casual, based on their posts)
 
-If any of these are missing, check `/mnt/lineked outreach/Startup_Target_List.md` and the Notion CRM databases for existing intel. If still missing, ask the user or note what needs to be researched.
+If any of these are missing, check `Startup_Target_List.md` in the project root and the Notion CRM databases for existing intel. If still missing, ask the user or note what needs to be researched.
 
 ## Outreach Rules (apply to ALL messages)
 
@@ -87,7 +87,7 @@ Include specific dates based on today's date and optimal send days (Tue-Thu).
 
 ### Step 4: Pre-Send Checklist
 Run through and mark each:
-- [ ] Character count ≤ 250 for connection request
+- [ ] Character count ≤ 300 for connection request (Premium limit)
 - [ ] No job ask in first contact
 - [ ] No external links in connection request
 - [ ] Portfolio link only in follow-up
@@ -118,7 +118,7 @@ If a job posting exists, include:
 
 ## File Naming
 
-Save the output to: `/mnt/lineked outreach/[Company]_Outreach.md` (or `[Person_Name]_Outreach.md` for individual targets not tied to a specific company).
+Save the output to: `[Company]_Outreach.md` in the project root (or `[Person_Name]_Outreach.md` for individual targets not tied to a specific company).
 
 ## After Drafting
 

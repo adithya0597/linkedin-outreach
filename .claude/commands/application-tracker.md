@@ -30,14 +30,14 @@ Located in the "Job Application Tracker" page. Three databases:
 - Scan Date, Portals Scanned, New Leads Found, New Companies, Actions Taken
 
 ### 2. CLAUDE.md — Messages Sent Log
-Located at `/mnt/lineked outreach/CLAUDE.md`. Contains a quick-reference table:
+Located at `CLAUDE.md` in the project root. Contains a quick-reference table:
 ```
 | Date | Target | Action | Response |
 ```
 Update this table whenever a message is sent or a response is received.
 
 ### 3. Startup_Target_List.md
-Located at `/mnt/lineked outreach/Startup_Target_List.md`. Update the priority actions table and individual company entries as status changes.
+Located at `Startup_Target_List.md` in the project root. Update the priority actions table and individual company entries as status changes.
 
 ## Actions This Skill Handles
 
@@ -75,8 +75,8 @@ Present as a prioritized action list:
 ## Follow-Ups Due Today
 
 ### Overdue (should have been sent already)
-1. **Aayush Naik** (Hypercubic) — Connection sent Mar 4, no response. Follow-up was due Mar 9.
-   → Action: Send follow-up message (Version A from Hypercubic_Outreach.md)
+1. **[Contact Name]** ([Company]) — Connection sent [date], no response. Follow-up was due [date].
+   → Action: Send follow-up message (Version A from [Company]_Outreach.md)
 
 ### Due Today
 2. **Sakshi Palta** (Hippocratic AI) — Connected Mar 5. Follow-up due today.

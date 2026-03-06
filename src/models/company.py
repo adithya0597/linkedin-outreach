@@ -21,6 +21,7 @@ class ScoreBreakdown:
     salary_score: float = 0.0  # 0-10
     profile_jd_similarity: float = 0.0  # 0-25
     domain_company_similarity: float = 0.0  # 0-25
+    domain_match_bonus: float = 0.0  # 0-10
 
     @property
     def deterministic_total(self) -> float:
@@ -28,7 +29,7 @@ class ScoreBreakdown:
 
     @property
     def semantic_total(self) -> float:
-        return self.profile_jd_similarity + self.domain_company_similarity
+        return self.profile_jd_similarity + self.domain_company_similarity + self.domain_match_bonus
 
     @property
     def total(self) -> float:

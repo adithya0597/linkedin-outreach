@@ -20,6 +20,10 @@ schedules:
       - "jobboard_ai"
     description: "Afternoon rescan — 9 high-velocity sources"
 
+  followup_alerts:
+    cron: "30 8 * * *"
+    description: "Daily follow-up alert — overdue and due-today"
+
   frequency_review:
     cron: "0 18 * * 5"  # Friday 6 PM
     action: "portal_analytics"

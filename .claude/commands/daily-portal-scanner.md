@@ -72,13 +72,13 @@ For each portal:
    - Tier 2: Cross-check Frog Hire → H1BGrader → MyVisaJobs. Include unless explicit "no sponsorship"
    - Tier 1: Same as Tier 2
 5. **Validate** remaining criteria (employees, funding, AI-native, US HQ)
-6. **Compare** against `/mnt/lineked outreach/Startup_Target_List.md` — flag NEW
+6. **Compare** against `Startup_Target_List.md` in the project root — flag NEW
 7. **Log** portal health and results
 8. **Collect analytics** per portal: total listings, new count, AM/PM timestamps, pass rate, duplicates, disappeared listings, scan duration (minutes)
 
 ## Output
 
-Create `/mnt/lineked outreach/Daily_Scan_[YYYY-MM-DD].md` with scan summary, new leads table (including tier and H1B status), portal status, H1B verification log, and actions needed.
+Create `Daily_Scan_[YYYY-MM-DD].md` in the project root with scan summary, new leads table (including tier and H1B status), portal status, H1B verification log, and actions needed.
 
 Update `Startup_Target_List.md`, Notion CRM, and `Portal_Analytics.md` (per-portal metrics + duplicate tracking).
 

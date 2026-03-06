@@ -48,6 +48,7 @@ class CompanyORM(Base):
     score_salary = Column(Float, default=0.0)
     score_profile_jd = Column(Float, default=0.0)
     score_domain_company = Column(Float, default=0.0)
+    score_domain_match = Column(Float, default=0.0)
     stage = Column(String(50), default="To apply")
     validation_result = Column(String(20), nullable=True)
     validation_notes = Column(Text, default="")
@@ -67,6 +68,7 @@ class CompanyORM(Base):
     data_completeness = Column(Float, default=0.0)
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+    last_synced_at = Column(DateTime, nullable=True)
 
     # Relationships
     contacts = relationship("ContactORM", back_populates="company")
@@ -88,6 +90,7 @@ class ContactORM(Base):
     mutual_connections = Column(Text, default="")  # comma-separated
     followers = Column(Integer, nullable=True)
     location = Column(String(255), default="")
+    email = Column(String(255), default="")
     is_open_profile = Column(Boolean, default=False)
     is_recruiter = Column(Boolean, default=False)
     recent_posts = Column(Text, default="")
@@ -180,9 +183,11 @@ class OutreachORM(Base):
     char_limit = Column(Integer, default=300)
     is_within_limit = Column(Boolean, default=True)
     stage = Column(String(50), default="Not Started")
+    sequence_step = Column(String(50), default="")
     sent_at = Column(DateTime, nullable=True)
     response_at = Column(DateTime, nullable=True)
     response_text = Column(Text, default="")
+    audit_trail = Column(Text, default="")
     created_at = Column(DateTime, default=datetime.now)
 
     company = relationship("CompanyORM", back_populates="outreach_records")

@@ -24,7 +24,7 @@ After a company passes validation, the next step is identifying who to reach out
 ## Search Process
 
 ### Step 1: LinkedIn Search
-Use Claude in Chrome to search LinkedIn for people at the target company.
+Search LinkedIn for people at the target company using web search or the LinkedIn research module.
 
 Search queries to try (in order):
 1. `[Company Name] CTO` or `[Company Name] VP Engineering`
@@ -106,7 +106,7 @@ Rank the contacts found by outreach priority:
 
 ## Where to Save
 
-- Save to `/mnt/lineked outreach/[Company]_Contacts.md` or append to existing `[Company]_Outreach.md`
+- Save to `[Company]_Contacts.md` in the project root, or append to existing `[Company]_Outreach.md`
 - Update Notion "LinkedIn Contacts" database with: Name, Company, Title, Degree, Followers, Connection Status, LinkedIn URL
 
 ## Edge Cases

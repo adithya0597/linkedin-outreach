@@ -1,0 +1,13 @@
+tier1_overrides:
+  Kumo AI: graph_rag
+  LlamaIndex: graph_rag
+  Cursor: ml_infrastructure
+  Hippocratic AI: healthcare
+  LangChain: llm_framework
+  Norm AI: llm_framework
+  Spherecast: ml_infrastructure
+  Cinder: agentic_ai
+  Augment Code: ml_infrastructure
+  Pair Team: healthcare
+  Snorkel AI: ml_infrastructure
+  EvenUp: agentic_ai
