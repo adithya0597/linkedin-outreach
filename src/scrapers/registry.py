@@ -30,8 +30,19 @@ class PortalRegistry:
         portal_tier = PortalTier(tier)
         return [s for s in self._scrapers.values() if s.tier == portal_tier]
 
-    def get_healthy_scrapers(self) -> list[BaseScraper]:
-        """Return only scrapers that report healthy status."""
+    def get_healthy_scrapers(self, health_monitor=None) -> list[BaseScraper]:
+        """Return only scrapers that report healthy status.
+
+        If a HealthMonitor is provided, uses data-driven health checks
+        based on scan history instead of per-scraper is_healthy() stubs.
+        """
+        if health_monitor is not None:
+            healthy = []
+            for name, scraper in self._scrapers.items():
+                portal_health = health_monitor.check_portal(name)
+                if portal_health.is_healthy:
+                    healthy.append(scraper)
+            return healthy
         return [s for s in self._scrapers.values() if s.is_healthy()]
 
 

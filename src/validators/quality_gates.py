@@ -99,6 +99,8 @@ class QualityAuditor:
         """Find records that haven't been updated recently."""
         from datetime import datetime, timedelta
 
+        from src.db.orm import JobPostingORM
+
         cutoff = datetime.now() - timedelta(days=max_days)
         issues = []
         stale = self.session.query(CompanyORM).filter(
@@ -106,7 +108,35 @@ class QualityAuditor:
         ).count()
         if stale > 0:
             issues.append(f"STALE: {stale} companies not updated in {max_days} days")
+
+        stale_postings = self.session.query(JobPostingORM).filter(
+            JobPostingORM.discovered_date < cutoff,
+            JobPostingORM.is_active == True,  # noqa: E712
+        ).count()
+        if stale_postings > 0:
+            issues.append(f"STALE: {stale_postings} active job postings older than {max_days} days")
+
         return issues
+
+    def archive_stale_postings(self, max_days: int = 30) -> int:
+        """Mark stale job postings as inactive. Returns count archived."""
+        from datetime import datetime, timedelta
+
+        from src.db.orm import JobPostingORM
+
+        cutoff = datetime.now() - timedelta(days=max_days)
+        stale = self.session.query(JobPostingORM).filter(
+            JobPostingORM.discovered_date < cutoff,
+            JobPostingORM.is_active == True,  # noqa: E712
+        ).all()
+
+        count = 0
+        for posting in stale:
+            posting.is_active = False
+            count += 1
+
+        self.session.commit()
+        return count
 
     def full_audit(self) -> str:
         """Run all quality checks and return formatted report."""

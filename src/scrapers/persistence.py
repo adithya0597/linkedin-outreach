@@ -7,7 +7,7 @@ from datetime import datetime
 
 from sqlalchemy.orm import Session
 
-from src.db.orm import JobPostingORM, ScanORM
+from src.db.orm import CompanyORM, JobPostingORM, ScanORM
 from src.models.job_posting import JobPosting
 
 
@@ -37,6 +37,32 @@ def posting_to_orm(posting: JobPosting) -> JobPostingORM:
     )
 
 
+def _get_or_create_company(
+    session: Session, company_name: str, portal_name: str
+) -> CompanyORM | None:
+    """Find existing company or create skeleton. Case-insensitive match."""
+    if not company_name or not company_name.strip():
+        return None
+    existing = session.query(CompanyORM).filter(
+        CompanyORM.name.ilike(company_name.strip())
+    ).first()
+    if existing:
+        return existing
+    company = CompanyORM(
+        name=company_name.strip(),
+        data_completeness=20.0,
+        tier="Tier 5 - RESCAN",
+        is_ai_native=True,
+        source_portal=portal_name,
+        stage="To apply",
+        created_at=datetime.now(),
+        updated_at=datetime.now(),
+    )
+    session.add(company)
+    session.flush()
+    return company
+
+
 def persist_scan_results(
     session: Session,
     portal_name: str,
@@ -44,8 +70,8 @@ def persist_scan_results(
     scan_type: str = "full",
     duration: float = 0.0,
     errors: str = "",
-) -> tuple[int, int]:
-    """Persist scan results, dedup by URL. Returns (total_found, new_inserted)."""
+) -> tuple[int, int, int]:
+    """Persist scan results, dedup by URL. Returns (total_found, new_inserted, new_companies)."""
     # Get existing URLs for dedup
     existing_urls = {
         row[0]
@@ -54,11 +80,34 @@ def persist_scan_results(
         .all()
     }
 
+    # Preload existing company names for tracking new creations
+    existing_company_names = {
+        row[0].lower() for row in session.query(CompanyORM.name).all() if row[0]
+    }
+    new_companies = 0
+    company_cache: dict[str, CompanyORM | None] = {}
+
     new_count = 0
     for posting in postings:
         if posting.url and posting.url in existing_urls:
             continue
         orm = posting_to_orm(posting)
+
+        # Link posting to company (get or create)
+        company_key = (posting.company_name or "").strip().lower()
+        if company_key:
+            if company_key not in company_cache:
+                was_known = company_key in existing_company_names
+                company = _get_or_create_company(session, posting.company_name, portal_name)
+                company_cache[company_key] = company
+                if company and not was_known:
+                    new_companies += 1
+                    existing_company_names.add(company_key)
+            else:
+                company = company_cache[company_key]
+            if company:
+                orm.company_id = company.id
+
         session.add(orm)
         existing_urls.add(posting.url)
         new_count += 1
@@ -78,4 +127,4 @@ def persist_scan_results(
     session.add(scan)
     session.commit()
 
-    return len(postings), new_count
+    return len(postings), new_count, new_companies

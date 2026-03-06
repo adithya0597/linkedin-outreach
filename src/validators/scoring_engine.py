@@ -22,6 +22,7 @@ class FitScoringEngine:
 
         self._embedder = None
         self._profile_embedding = None
+        self._domain_scorer = None
 
     def score_deterministic(self, company: CompanyORM) -> ScoreBreakdown:
         """Calculate deterministic half of fit score (50pts max)."""
@@ -115,8 +116,17 @@ class FitScoringEngine:
 
         if include_semantic:
             breakdown = self._add_semantic_scores(breakdown, company)
+            breakdown.domain_match_bonus = self._score_domain_match(company)
 
         return breakdown
+
+    def _score_domain_match(self, company: CompanyORM) -> float:
+        """Calculate domain match bonus score (0-10)."""
+        if self._domain_scorer is None:
+            from src.validators.domain_scorer import DomainMatchScorer
+            self._domain_scorer = DomainMatchScorer()
+        score, _domain = self._domain_scorer.score_domain_match(company)
+        return score
 
     def _add_semantic_scores(
         self, breakdown: ScoreBreakdown, company: CompanyORM
@@ -165,5 +175,13 @@ class FitScoringEngine:
     ) -> list[tuple[CompanyORM, ScoreBreakdown]]:
         """Score all companies and return sorted by total score."""
         results = [(c, self.score(c, include_semantic)) for c in companies]
+        results.sort(key=lambda x: x[1].total, reverse=True)
+        return results
+
+    def batch_score_semantic(
+        self, companies: list[CompanyORM]
+    ) -> list[tuple[CompanyORM, "ScoreBreakdown"]]:
+        """Score all companies with semantic scoring and domain match, sorted by total desc."""
+        results = [(c, self.score(c, include_semantic=True)) for c in companies]
         results.sort(key=lambda x: x[1].total, reverse=True)
         return results

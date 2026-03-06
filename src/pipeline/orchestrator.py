@@ -67,6 +67,7 @@ class Pipeline:
             company.score_salary = breakdown.salary_score
             company.score_profile_jd = breakdown.profile_jd_similarity
             company.score_domain_company = breakdown.domain_company_similarity
+            company.score_domain_match = breakdown.domain_match_bonus
             company.updated_at = datetime.now()
             scored += 1
 
@@ -142,25 +143,53 @@ class Pipeline:
 
         total_found = 0
         total_new = 0
+        total_new_companies = 0
         for s in scrapers:
             if not s.is_healthy():
                 continue
             start = time.time()
             try:
                 postings = await s.search(kws)
-                found, new = persist_scan_results(
+                found, new, new_co = persist_scan_results(
                     self.session, s.name, postings, duration=time.time() - start
                 )
                 total_found += found
                 total_new += new
+                total_new_companies += new_co
             except Exception as e:
                 logger.error(f"Scan failed for {s.name}: {e}")
+
+        # Check health after scan
+        from src.pipeline.health_monitor import HealthMonitor
+        monitor = HealthMonitor(self.session)
+        alerts = monitor.get_alerts()
+        for alert in alerts:
+            logger.warning(
+                f"Portal health alert: {alert.portal} — "
+                f"{alert.consecutive_failures} consecutive failures"
+            )
 
         return {
             "total_found": total_found,
             "total_new": total_new,
+            "total_new_companies": total_new_companies,
             "portals_scanned": len(scrapers),
         }
+
+    async def scan_smart(
+        self,
+        keywords: list[str] | None = None,
+        enrich_h1b: bool = True,
+    ) -> dict:
+        """Run smart scan with portal scorer filtering and H1B enrichment."""
+        from src.pipeline.smart_scan import SmartScanOrchestrator
+
+        orchestrator = SmartScanOrchestrator(self.session)
+        return await orchestrator.run_smart_scan(
+            keywords=keywords,
+            enrich_h1b=enrich_h1b,
+            scan_type="full",
+        )
 
     def run(
         self,
@@ -169,6 +198,7 @@ class Pipeline:
         verify_h1b: bool = False,
         include_semantic: bool = False,
         scan: bool = False,
+        smart: bool = False,
         scan_portals: list[str] | None = None,
     ) -> dict:
         """Run the full pipeline: scan → validate → h1b → score."""
@@ -177,7 +207,10 @@ class Pipeline:
         results = {}
 
         if scan:
-            results["scan"] = asyncio.run(self.scan_all(portals=scan_portals))
+            if smart:
+                results["scan"] = asyncio.run(self.scan_smart())
+            else:
+                results["scan"] = asyncio.run(self.scan_all(portals=scan_portals))
 
         if validate:
             results["validation"] = self.validate_all()

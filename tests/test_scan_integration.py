@@ -70,7 +70,7 @@ class TestPersistScanResults:
                 source_portal=SourcePortal.STARTUP_JOBS,
             )
         ]
-        found, new = persist_scan_results(session, "startup.jobs", postings)
+        found, new, new_co = persist_scan_results(session, "startup.jobs", postings)
         assert found == 1
         assert new == 1
         assert session.query(JobPostingORM).count() == 1
@@ -84,7 +84,7 @@ class TestPersistScanResults:
         ]
         persist_scan_results(session, "test", postings)
         # Second call with same URL
-        found, new = persist_scan_results(session, "test", postings)
+        found, new, new_co = persist_scan_results(session, "test", postings)
         assert found == 1
         assert new == 0
         assert session.query(JobPostingORM).count() == 1
@@ -114,7 +114,7 @@ class TestPersistScanResults:
             JobPosting(url="", source_portal=SourcePortal.MANUAL),
             JobPosting(url="", source_portal=SourcePortal.MANUAL),
         ]
-        found, new = persist_scan_results(session, "test", postings)
+        found, new, new_co = persist_scan_results(session, "test", postings)
         assert new == 2
 
     def test_error_recorded_in_scan(self, session):
@@ -133,7 +133,7 @@ class TestPersistScanResults:
             JobPosting(url="https://x.com/existing", source_portal=SourcePortal.MANUAL),
             JobPosting(url="https://x.com/new", source_portal=SourcePortal.MANUAL),
         ]
-        found, new = persist_scan_results(session, "p1", postings)
+        found, new, new_co = persist_scan_results(session, "p1", postings)
         assert found == 2
         assert new == 1
 
