@@ -3,6 +3,7 @@
 Launch: streamlit run src/dashboard/app.py
 """
 
+import os
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -16,8 +17,11 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 from sqlalchemy import func
 
+from src.dashboard.themes import get_theme
 from src.db.database import get_engine, init_db
 from src.db.orm import CompanyORM, ContactORM, H1BORM, OutreachORM, ScanORM
+
+theme = get_theme(os.getenv("DASHBOARD_THEME", "light"))
 
 # ---------------------------------------------------------------------------
 # Config & Session Setup
@@ -141,6 +145,10 @@ PAGES = [
     "Scan History",
     "Outreach Tracker",
     "H1B Status",
+    "Data Quality",
+    "Contacts",
+    "A/B Testing",
+    "Follow-Up Manager",
 ]
 
 st.sidebar.title("LinkedIn Outreach")
@@ -284,9 +292,9 @@ def page_company_explorer():
 
     def _color_validation(val):
         if val == "PASS":
-            return "background-color: #2d6a2e; color: white"
+            return f"background-color: {theme.validation_pass}; color: white"
         elif val == "FAIL":
-            return "background-color: #8b2020; color: white"
+            return f"background-color: {theme.validation_fail}; color: white"
         elif val == "BORDERLINE":
             return "background-color: #8b7d20; color: white"
         return ""
@@ -428,10 +436,24 @@ def page_scan_history():
 
 OUTREACH_STAGES = [
     "Not Started",
-    "Pre-Engaged",
-    "Connected",
+    "Sent",
+    "No Answer",
     "Responded",
     "Interview",
+    "Declined",
+    "Offer",
+    "Rejected",
+]
+
+DATA_QUALITY_FIELDS = [
+    "description",
+    "tier",
+    "fit_score",
+    "h1b_status",
+    "stage",
+    "salary_range",
+    "hiring_manager",
+    "role_url",
 ]
 
 
@@ -625,6 +647,59 @@ def page_h1b_status():
 
 
 # ===================================================================
+# PAGE 6 — Data Quality
+# ===================================================================
+
+def page_data_quality():
+    """Data quality monitoring page."""
+    st.title("Data Quality")
+    df = load_companies()
+    if df.empty:
+        st.info("No companies to analyze.")
+        return
+    total = len(df)
+    for field in DATA_QUALITY_FIELDS:
+        if field in df.columns:
+            filled = df[field].notna().sum()
+            pct = (filled / total * 100) if total > 0 else 0
+            st.markdown(f"**{field}**: {filled}/{total} ({pct:.0f}%)")
+
+
+# ===================================================================
+# PAGE 7 — Contacts
+# ===================================================================
+
+def page_contacts():
+    """Contacts management page."""
+    st.title("Contacts")
+    df = load_contacts()
+    if df.empty:
+        st.info("No contacts found.")
+        return
+    st.dataframe(df)
+
+
+# ===================================================================
+# PAGE 8 — A/B Testing
+# ===================================================================
+
+def page_ab_testing():
+    """A/B Testing analytics page."""
+    st.title("A/B Testing")
+    st.info("A/B testing analytics coming soon.")
+
+
+# ===================================================================
+# PAGE 9 — Follow-Up Manager
+# ===================================================================
+
+def page_followup_manager():
+    """Follow-up management page."""
+    st.title("Follow-Up Manager")
+    st.info("Follow-up manager coming soon.")
+
+
+# ===================================================================
 # Router
 # ===================================================================
 
@@ -634,6 +709,10 @@ PAGE_MAP = {
     "Scan History": page_scan_history,
     "Outreach Tracker": page_outreach_tracker,
     "H1B Status": page_h1b_status,
+    "Data Quality": page_data_quality,
+    "Contacts": page_contacts,
+    "A/B Testing": page_ab_testing,
+    "Follow-Up Manager": page_followup_manager,
 }
 
 PAGE_MAP[page]()

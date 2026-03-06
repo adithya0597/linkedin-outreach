@@ -7,6 +7,7 @@ import time
 from datetime import datetime
 
 import httpx
+from loguru import logger
 
 from src.db.orm import CompanyORM
 
@@ -33,6 +34,10 @@ class NotionSchemas:
         "Differentiators": ("differentiators", "multi_select"),
         "Applied Date": ("created_at", "date"),
         "Follow Up": ("updated_at", "date"),
+        "LinkedIn URL": ("linkedin_url", "url"),
+        "HM LinkedIn": ("hiring_manager_linkedin", "url"),
+        "Why Fit": ("why_fit", "rich_text"),
+        "Best Stats": ("best_stats", "rich_text"),
     }
 
     @classmethod
@@ -167,9 +172,13 @@ class NotionCRM:
         results = data.get("results", [])
         return results[0]["id"] if results else None
 
-    async def sync_company(self, company: CompanyORM) -> str:
-        """Upsert a company to Notion. Returns the page_id."""
+    async def sync_company(self, company: CompanyORM, dry_run: bool = False) -> str | dict:
+        """Upsert a company to Notion. Returns the page_id (or properties dict if dry_run)."""
         properties = NotionSchemas.orm_to_notion(company)
+
+        if dry_run:
+            return properties
+
         page_id = await self.find_page_by_name(company.name)
 
         if page_id:
@@ -232,6 +241,45 @@ class NotionCRM:
             page_ids.append(pid)
         return page_ids
 
+    async def update_company_stage(self, company_name: str, new_stage: str) -> str | None:
+        """Update the Stage status field for a company. Returns page_id or None."""
+        page_id = await self.find_page_by_name(company_name)
+        if not page_id:
+            return None
+        await self._request(
+            "PATCH",
+            f"{NOTION_BASE}/pages/{page_id}",
+            json={"properties": {"Stage": {"status": {"name": new_stage}}}},
+        )
+        return page_id
+
+    async def get_all_page_ids(self) -> dict[str, str]:
+        """Get all company name -> page_id mappings, handling pagination."""
+        mapping: dict[str, str] = {}
+        has_more = True
+        start_cursor: str | None = None
+
+        while has_more:
+            payload: dict = {}
+            if start_cursor:
+                payload["start_cursor"] = start_cursor
+
+            data = await self._request(
+                "POST",
+                f"{NOTION_BASE}/databases/{self.database_id}/query",
+                json=payload,
+            )
+            for page in data.get("results", []):
+                title_prop = page.get("properties", {}).get("Company", {}).get("title", [])
+                if title_prop:
+                    name = title_prop[0].get("plain_text", "")
+                    if name:
+                        mapping[name] = page["id"]
+            has_more = data.get("has_more", False)
+            start_cursor = data.get("next_cursor")
+
+        return mapping
+
     # ---- private helpers ----
 
     async def _request(self, method: str, url: str, **kwargs) -> dict:
@@ -265,3 +313,57 @@ class NotionCRM:
             request=response.request,
             response=response,
         )
+
+    async def push_all_parallel(
+        self, companies: list, max_concurrent: int = 3
+    ) -> list[str]:
+        """Push with semaphore-limited concurrency.
+
+        Each company is pushed via sync_company in parallel, with at most
+        *max_concurrent* in-flight requests.  Failures are logged and skipped;
+        one failure does not stop the rest.
+        """
+        sem = asyncio.Semaphore(max_concurrent)
+        results: list[str] = []
+
+        async def _push_one(company):
+            async with sem:
+                try:
+                    page_id = await self.sync_company(company)
+                    return page_id
+                except Exception as e:
+                    logger.warning(f"Failed to push {company.name}: {e}")
+                    return None
+
+        tasks = [_push_one(c) for c in companies]
+        raw_results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        for r in raw_results:
+            if isinstance(r, str):
+                results.append(r)
+            elif isinstance(r, dict) and not isinstance(r, Exception):
+                results.append(str(r))
+
+        return results
+
+    async def pull_since(self, last_edited_after: str) -> list[dict]:
+        """Pull pages edited after ISO timestamp using Notion filter."""
+        try:
+            filter_payload = {
+                "filter": {
+                    "timestamp": "last_edited_time",
+                    "last_edited_time": {
+                        "after": last_edited_after,
+                    },
+                }
+            }
+
+            resp = await self._request(
+                "POST",
+                f"{NOTION_BASE}/databases/{self.database_id}/query",
+                json=filter_payload,
+            )
+            return resp.get("results", [])
+        except Exception as e:
+            logger.warning(f"Pull since {last_edited_after} failed: {e}")
+            return []
