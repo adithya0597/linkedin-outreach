@@ -1,0 +1,38 @@
+[
+  {
+    "title": "AI Engineer",
+    "company": "DataMesh",
+    "url": "https://trueup.io/jobs/datamesh-ai-engineer",
+    "location": "San Francisco, CA",
+    "salary": "$150k - $200k",
+    "posted": "2026-03-04",
+    "company_size": "50-100",
+    "funding": "Series A",
+    "description": "Build data pipelines and AI-powered analytics tools for enterprise customers.",
+    "tags": ["Python", "Spark", "LLM", "AWS"]
+  },
+  {
+    "title": "LLM Infrastructure Engineer",
+    "company": "SemanticAI",
+    "url": "https://trueup.io/jobs/semanticai-llm-infra",
+    "location": "New York, NY",
+    "salary": "$160k - $220k",
+    "posted": "2026-03-03",
+    "company_size": "20-50",
+    "funding": "Seed",
+    "description": "Design and implement LLM serving infrastructure for our semantic search platform.",
+    "tags": ["Python", "FastAPI", "Kubernetes", "CUDA"]
+  },
+  {
+    "title": "ML Platform Engineer",
+    "company": "PredictOps",
+    "url": "https://trueup.io/jobs/predictops-ml-platform",
+    "location": "Austin, TX",
+    "salary": "$145k - $185k",
+    "posted": "2026-03-05",
+    "company_size": "30-60",
+    "funding": "Series B",
+    "description": "Build ML platform tooling including feature stores, model registries, and deployment pipelines.",
+    "tags": ["Python", "MLflow", "Docker", "Terraform"]
+  }
+]

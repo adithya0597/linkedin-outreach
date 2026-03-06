@@ -1,0 +1,91 @@
+# Outreach Rules — 12 rules encoded as config
+
+character_limits:
+  connection_request: 300  # Premium limit
+  inmail: 400
+  comment: 280
+  follow_up: null  # No limit
+  recruiter_message_words: 200
+
+timing:
+  best_days: ["Tuesday", "Wednesday", "Thursday"]
+  best_hours: [9, 10, 11]  # AM in recipient timezone
+  sequence_duration_days: 14
+  max_touches: 4
+  touch_schedule:
+    pre_engagement: -1  # Day -1
+    connection_request: 1
+    follow_up: [4, 5]
+    deeper_engagement: [9, 10]
+    final_touch: 14
+
+rules:
+  - id: 1
+    rule: "Portfolio link in follow-up only — never in connection requests"
+    applies_to: ["connection_request"]
+    check: "no_portfolio_url"
+
+  - id: 2
+    rule: "Connection requests MAX 300 characters"
+    applies_to: ["connection_request"]
+    check: "char_limit_300"
+
+  - id: 3
+    rule: "Never ask for job in first contact or first follow-up"
+    applies_to: ["connection_request", "follow_up"]
+    check: "no_job_ask"
+
+  - id: 4
+    rule: "Include at least ONE quantified stat"
+    applies_to: ["all"]
+    check: "has_stat"
+
+  - id: 5
+    rule: "Reference something specific about person or company"
+    applies_to: ["all"]
+    check: "has_specific_reference"
+
+  - id: 6
+    rule: "Match recipient communication style"
+    applies_to: ["all"]
+    check: "style_match"
+
+  - id: 7
+    rule: "Pre-engage before connecting"
+    applies_to: ["connection_request"]
+    check: "pre_engagement_done"
+
+  - id: 8
+    rule: "Send Tue-Thu 9-11 AM recipient timezone"
+    applies_to: ["all"]
+    check: "timing_valid"
+
+  - id: 9
+    rule: "4 touches over 14 days"
+    applies_to: ["sequence"]
+    check: "sequence_valid"
+
+  - id: 10
+    rule: "Vary message structure"
+    applies_to: ["all"]
+    check: "no_duplicate_structure"
+
+  - id: 11
+    rule: "No duplicate outreach"
+    applies_to: ["all"]
+    check: "no_duplicate_contact"
+
+  - id: 12
+    rule: "Track everything"
+    applies_to: ["all"]
+    check: "logged"
+
+banned_phrases:
+  - "hope this finds you well"
+  - "love your profile"
+  - "impressive work"
+  - "pick your brain"
+  - "just reaching out"
+  - "thought I'd connect"
+
+portfolio_url: "https://bala-adithya-malaraju.vercel.app/"

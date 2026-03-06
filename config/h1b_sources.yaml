@@ -1,0 +1,53 @@
+# H1B Verification Sources — 3-source waterfall
+
+sources:
+  - name: "Frog Hire"
+    priority: 1
+    base_url: "https://www.froghire.ai"
+    search_url: "https://www.froghire.ai/company?search={company}"
+    scraper_type: "playwright"
+    fields:
+      - "company_name"
+      - "employee_count"
+      - "h1b_status"
+      - "perm_status"
+      - "everify_status"
+      - "lca_count"
+      - "lca_fiscal_year"
+      - "ranking"
+    rate_limit_per_minute: 10
+
+  - name: "H1BGrader"
+    priority: 2
+    base_url: "https://h1bgrader.com"
+    search_url: "https://h1bgrader.com/search/{company}"
+    scraper_type: "httpx"
+    fields:
+      - "company_name"
+      - "approval_rate"
+      - "lca_count"
+      - "average_salary"
+    rate_limit_per_minute: 15
+
+  - name: "MyVisaJobs"
+    priority: 3
+    base_url: "https://myvisajobs.com"
+    search_url: "https://www.myvisajobs.com/Search_Visa_Sponsor.aspx?co={company}"
+    scraper_type: "httpx"
+    fields:
+      - "company_name"
+      - "lca_count"
+      - "approval_rate"
+      - "locations"
+    rate_limit_per_minute: 15
+
+tier_rules:
+  tier_3:
+    action: "auto_pass"
+    reason: "Startup portals — no H1B filter needed"
+  tier_2:
+    action: "waterfall_verify"
+    fallback: "include_as_unknown"
+  tier_1:
+    action: "waterfall_verify"
+    fallback: "include_as_unknown"

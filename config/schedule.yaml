@@ -1,0 +1,31 @@
+# Scan Schedule Configuration
+
+schedules:
+  full_scan:
+    cron: "0 8 * * *"  # 8 AM daily
+    portals: "all"  # All 13 sources
+    description: "Morning full scan — all portals"
+
+  afternoon_rescan:
+    cron: "0 14 * * *"  # 2 PM daily
+    portals:
+      - "wellfound"
+      - "yc"
+      - "frog_hire"
+      - "linkedin"
+      - "builtin"
+      - "trueup"
+      - "jobright"
+      - "ai_jobs"
+      - "jobboard_ai"
+    description: "Afternoon rescan — 9 high-velocity sources"
+
+  frequency_review:
+    cron: "0 18 * * 5"  # Friday 6 PM
+    action: "portal_analytics"
+    description: "Weekly portal performance review"
+
+promotion_rules:
+  promote_threshold: 4  # Score >= 4 for 2 consecutive weeks → add to 2pm rescan
+  demote_threshold: 3   # Score < 3 for 2 consecutive weeks → remove from 2pm rescan
+  review_window_weeks: 2

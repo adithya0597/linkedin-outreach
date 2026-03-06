@@ -1,0 +1,95 @@
+{
+  "companies": [
+    {
+      "id": 1001,
+      "name": "Acme AI",
+      "slug": "acme-ai",
+      "one_liner": "AI-powered workflow automation",
+      "long_description": "Building next-gen AI automation tools for enterprise teams. Our platform combines LLMs with structured workflows to automate complex business processes.",
+      "team_size": 15,
+      "industry": "Artificial Intelligence",
+      "subindustry": "ML Infrastructure",
+      "launched_at": "2024-06-01",
+      "batch": "S24",
+      "website": "https://acme-ai.com",
+      "highlight_india": false,
+      "highlight_latinamerica": false,
+      "highlight_southeast_asia": false,
+      "jobs": [
+        {
+          "id": 5001,
+          "title": "Founding AI Engineer",
+          "url": "https://www.workatastartup.com/jobs/5001",
+          "location": "San Francisco, CA",
+          "salary_min": 150000,
+          "salary_max": 200000,
+          "equity_min": 0.5,
+          "equity_max": 1.5,
+          "remote": true,
+          "experience": "2+ years",
+          "description": "Build core AI infrastructure powering our automation platform."
+        }
+      ]
+    },
+    {
+      "id": 1002,
+      "name": "NeuralFlow",
+      "slug": "neuralflow",
+      "one_liner": "Real-time ML inference platform",
+      "long_description": "NeuralFlow provides sub-millisecond ML inference for production applications. Built for teams that need low-latency predictions at scale.",
+      "team_size": 8,
+      "industry": "Artificial Intelligence",
+      "subindustry": "Developer Tools",
+      "launched_at": "2025-01-15",
+      "batch": "W25",
+      "website": "https://neuralflow.dev",
+      "highlight_india": false,
+      "highlight_latinamerica": false,
+      "highlight_southeast_asia": false,
+      "jobs": [
+        {
+          "id": 5002,
+          "title": "ML Engineer",
+          "url": "https://www.workatastartup.com/jobs/5002",
+          "location": "Remote",
+          "salary_min": 140000,
+          "salary_max": 190000,
+          "remote": true,
+          "experience": "3+ years",
+          "description": "Optimize inference pipelines and build model serving infrastructure."
+        }
+      ]
+    },
+    {
+      "id": 1003,
+      "name": "GraphRAG Labs",
+      "slug": "graphrag-labs",
+      "one_liner": "Knowledge graphs meet retrieval-augmented generation",
+      "long_description": "We build graph-powered RAG systems that deliver more accurate and contextual AI responses for enterprise knowledge management.",
+      "team_size": 12,
+      "industry": "Artificial Intelligence",
+      "subindustry": "Enterprise Software",
+      "launched_at": "2025-03-01",
+      "batch": "W25",
+      "website": "https://graphraglabs.com",
+      "highlight_india": false,
+      "highlight_latinamerica": false,
+      "highlight_southeast_asia": false,
+      "jobs": [
+        {
+          "id": 5003,
+          "title": "AI Infrastructure Engineer",
+          "url": "https://www.workatastartup.com/jobs/5003",
+          "location": "San Francisco, CA",
+          "salary_min": 160000,
+          "salary_max": 210000,
+          "equity_min": 0.3,
+          "equity_max": 1.0,
+          "remote": false,
+          "experience": "2+ years",
+          "description": "Build and scale our graph-based RAG pipeline using Neo4j and vector databases."
+        }
+      ]
+    }
+  ]
+}

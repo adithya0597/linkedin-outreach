@@ -1,0 +1,81 @@
+# Company validation criteria
+
+primary_criteria:
+  max_employees: 1000
+  valid_funding_stages:
+    - "Pre-Seed"
+    - "Seed"
+    - "Series A"
+    - "Series B"
+    - "Series C"
+  series_c_max_employees: 500
+  require_ai_native: true
+  require_us_hq: true
+
+secondary_criteria:
+  min_required: 2  # At least 2 of 4 must be true
+  checks:
+    - "recent_funding_18_months"
+    - "active_ai_hiring_2_plus"
+    - "technical_founder"
+    - "product_market_fit"
+
+disqualifiers:
+  company_types:
+    - "FAANG"
+    - "Big Tech"
+    - "Consulting"
+    - "Staffing"
+  specific_companies:
+    - "Meta"
+    - "Apple"
+    - "Amazon"
+    - "Netflix"
+    - "Google"
+    - "Alphabet"
+    - "Microsoft"
+    - "Salesforce"
+    - "Oracle"
+    - "IBM"
+    - "SAP"
+    - "Accenture"
+    - "Deloitte"
+    - "TCS"
+    - "Infosys"
+    - "Wipro"
+    - "Cognizant"
+  red_flags:
+    - "no H1B sponsorship"
+    - "US citizens only"
+    - "permanent residents only"
+    - "security clearance required"
+    - "must be authorized to work without sponsorship"
+
+h1b_tiers:
+  tier_3_portals:  # No H1B filter
+    - "Wellfound"
+    - "Work at a Startup (YC)"
+    - "startup.jobs"
+    - "Hiring Cafe"
+    - "Top Startups"
+  tier_2_portals:  # H1B cross-check
+    - "Frog Hire"
+    - "JobBoard AI"
+    - "AI Jobs"
+    - "Welcome to the Jungle"
+    - "Built In"
+    - "TrueUp"
+    - "Jobright AI"
+  tier_1_portals:  # Same as tier 2
+    - "LinkedIn"
+
+h1b_verification_sources:
+  - name: "Frog Hire"
+    url: "https://www.froghire.ai/company?search={company}"
+    priority: 1
+  - name: "H1BGrader"
+    url: "https://h1bgrader.com"
+    priority: 2
+  - name: "MyVisaJobs"
+    url: "https://myvisajobs.com"
+    priority: 3

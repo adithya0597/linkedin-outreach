@@ -1,0 +1,106 @@
+# Fit Scoring Configuration — Hybrid (50pts deterministic + 50pts semantic)
+
+# === DETERMINISTIC HALF (50 points max) ===
+
+h1b_scoring:  # 0-15 points
+  confirmed: 15
+  likely: 8
+  unknown: 3
+  explicit_no: 0
+  not_applicable: 12  # Tier 3 auto-pass gets good score
+
+criteria_scoring:  # 0-15 points
+  employees_under_1000: 4
+  valid_funding_stage: 4
+  us_hq: 3
+  ai_native: 4
+
+tech_overlap_scoring:  # 0-10 points
+  # Each matching keyword = points (up to max 10)
+  points_per_match: 1.5
+  max_points: 10
+  candidate_tech_keywords:
+    - "python"
+    - "langchain"
+    - "neo4j"
+    - "milvus"
+    - "fastapi"
+    - "aws"
+    - "java"
+    - "spring boot"
+    - "rag"
+    - "llm"
+    - "nlp"
+    - "knowledge graph"
+    - "vector"
+    - "kafka"
+    - "databricks"
+    - "airflow"
+    - "docker"
+    - "kubernetes"
+    - "pydantic"
+    - "sql"
+    - "snowflake"
+    - "bigquery"
+    - "azure"
+    - "cdc"
+    - "data pipeline"
+    - "ml"
+    - "agent"
+    - "embedding"
+
+salary_scoring:  # 0-10 points
+  candidate_target_min: 150000
+  candidate_target_max: 280000
+  full_overlap: 10
+  partial_overlap: 6
+  no_data: 5  # Benefit of doubt
+  out_of_range: 2
+
+# === SEMANTIC HALF (50 points max) ===
+
+semantic_scoring:
+  model: "sentence-transformers/all-MiniLM-L6-v2"
+  profile_jd_max: 25  # cosine similarity * 25
+  domain_company_max: 25  # cosine similarity * 25
+
+  candidate_profile_text: |
+    AI Engineer with production experience in Graph RAG, LLM automation, and enterprise
+    data pipelines. Built 138-node Neo4j semantic graph for mainframe-to-cloud code
+    translation achieving 90% automation across 27 microservices. Automated 26,000+
+    orders using Python, LangChain, and agentic AI pipelines with 95% reduction in
+    manual processing. Healthcare CDC pipeline expertise: 300+ table Change Data Capture
+    with 99.9% data integrity. AWS, Azure, FastAPI, Pydantic, Docker, Kubernetes.
+    MLOps including compiler-in-the-loop validation and multi-platform LLM observability.
+
+  candidate_domain_keywords: |
+    graph rag knowledge graph neo4j vector database milvus llm automation
+    enterprise data pipeline healthcare cdc change data capture
+    code translation ast parsing compiler validation agentic ai
+    fastapi pydantic production ml systems cloud migration
+
+# === DISQUALIFIER KEYWORDS (instant score cap) ===
+
+disqualifier_keywords:
+  - "PhD required"
+  - "10+ years"
+  - "15+ years"
+  - "principal engineer"
+  - "staff scientist"
+  - "research scientist"  # unless company is known target
+
+# === DOMAIN BOOST ===
+# Companies in these domains get a 5-point boost to semantic score
+
+domain_boost:
+  keywords:
+    - "healthcare"
+    - "medical"
+    - "clinical"
+    - "rag"
+    - "knowledge graph"
+    - "code translation"
+    - "code generation"
+    - "developer tools"
+    - "data pipeline"
+  boost_points: 5
