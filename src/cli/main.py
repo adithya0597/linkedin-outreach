@@ -3,8 +3,11 @@
 from pathlib import Path
 
 import typer
+from dotenv import load_dotenv
 from rich.console import Console
 from rich.table import Table
+
+load_dotenv()
 
 app = typer.Typer(
     name="outreach",
@@ -2208,6 +2211,195 @@ def theme_cmd(
     else:
         current = os.environ.get("DASHBOARD_THEME", "light")
         console.print(f"[bold]Current theme:[/bold] {current}")
+
+
+@app.command("gmail-send")
+def gmail_send_cmd(dry_run: bool = typer.Option(False, "--dry-run", help="Display drafts without send instructions")):
+    """Display pending Gmail drafts for MCP sending."""
+    from src.db.database import get_engine, get_session, init_db
+    from src.integrations.gmail_bridge import GmailBridge
+
+    engine = get_engine()
+    init_db(engine)
+    session = get_session(engine)
+    bridge = GmailBridge(session)
+    drafts = bridge.load_pending_drafts()
+    if not drafts:
+        console.print("[yellow]No pending Gmail drafts found.[/yellow]")
+        session.close()
+        return
+    console.print(f"\n[bold]Pending Gmail Drafts ({len(drafts)}):[/bold]\n")
+    for i, d in enumerate(drafts, 1):
+        console.print(f"[cyan]#{i}[/cyan] To: {d.get('to', 'N/A')} | Subject: {d.get('subject', 'N/A')} | Company: {d.get('company', d.get('metadata', {}).get('company', 'N/A'))}")
+        console.print(f"  Body: {d.get('body', '')[:200]}...")
+        console.print()
+    if not dry_run:
+        console.print("[bold green]Next step:[/bold green] Ask Claude to run `gmail_create_draft` MCP tool for each draft above.")
+    session.close()
+
+
+@app.command("gmail-mark-sent")
+def gmail_mark_sent_cmd(
+    all_drafts: bool = typer.Option(False, "--all", help="Mark all pending drafts as sent"),
+    company: str = typer.Option(None, "--company", help="Mark drafts for specific company"),
+):
+    """Mark Gmail drafts as sent and update outreach records."""
+    from src.db.database import get_engine, get_session, init_db
+    from src.integrations.gmail_bridge import GmailBridge
+
+    engine = get_engine()
+    init_db(engine)
+    session = get_session(engine)
+    bridge = GmailBridge(session)
+    companies = None
+    if company:
+        companies = [company]
+    elif not all_drafts:
+        console.print("[red]Specify --all or --company COMPANY[/red]")
+        session.close()
+        return
+    count = bridge.mark_drafts_sent(companies)
+    console.print(f"[green]Marked {count} outreach records as 'Draft Created'[/green]")
+    bridge.clear_drafts()
+    console.print("[green]Cleared processed drafts from JSON.[/green]")
+    session.close()
+
+
+@app.command("linkedin-queue")
+def linkedin_queue_cmd(limit: int = typer.Option(10, "--limit", "-n", help="Max messages to show")):
+    """Show LinkedIn outreach queue in copy-paste format."""
+    from src.db.database import get_engine, get_session, init_db
+    from src.outreach.send_queue import SendQueueManager
+
+    engine = get_engine()
+    init_db(engine)
+    session = get_session(engine)
+    sqm = SendQueueManager(session)
+    status = sqm.get_rate_limit_status()
+    console.print(f"\n[bold]Rate Limit:[/bold] {status.get('sent_this_week', 0)}/{status.get('limit', 100)} sent this week\n")
+    queue = sqm.generate_daily_queue(max_sends=limit)
+    if not queue:
+        console.print("[yellow]No messages in queue.[/yellow]")
+        session.close()
+        return
+    for i, item in enumerate(queue, 1):
+        console.print(f"\n{'='*60}")
+        console.print(f"[cyan]#{i}[/cyan] {item.get('company_name', 'N/A')} — {item.get('contact_name', 'N/A')}")
+        actions = item.get("linkedin_actions", {})
+        console.print(f"Profile: {actions.get('profile_url', 'N/A') if actions else 'N/A'}")
+        msg = item.get("content", "")
+        console.print(f"Chars: {len(msg)}")
+        console.print("--- Copy below ---")
+        console.print(msg)
+        console.print("--- End ---")
+    session.close()
+
+
+@app.command("linkedin-status")
+def linkedin_status_cmd():
+    """Show outreach status summary by stage."""
+    from src.db.database import get_engine, get_session, init_db
+    from src.outreach.send_queue import SendQueueManager
+
+    engine = get_engine()
+    init_db(engine)
+    session = get_session(engine)
+    sqm = SendQueueManager(session)
+    summary = sqm.get_outreach_status_summary()
+    if not summary:
+        console.print("[yellow]No outreach records found.[/yellow]")
+        session.close()
+        return
+    console.print("\n[bold]Outreach Status:[/bold]\n")
+    total = sum(summary.values())
+    for stage, count in sorted(summary.items()):
+        console.print(f"  {stage}: {count}")
+    sent = summary.get("Sent", 0)
+    responded = summary.get("Responded", 0)
+    rate = f"{responded/sent*100:.1f}%" if sent > 0 else "N/A"
+    console.print(f"\n  Total: {total} | Response Rate: {rate}")
+    session.close()
+
+
+@app.command("check-responses")
+def check_responses_cmd():
+    """Show pending response checks with Gmail search queries."""
+    from src.db.database import get_engine, get_session, init_db
+    from src.integrations.gmail_bridge import ResponseMonitor
+
+    engine = get_engine()
+    init_db(engine)
+    session = get_session(engine)
+
+    try:
+        monitor = ResponseMonitor(session)
+        checks = monitor.get_pending_checks()
+        summary = monitor.get_check_summary()
+
+        if not checks:
+            console.print("[yellow]No sent outreach awaiting response checks.[/yellow]")
+            return
+
+        console.print(f"\n[bold]Pending Response Checks ({summary['total_sent']}):[/bold]")
+        console.print(f"  With email: {summary['with_email']} | Without email: {summary['without_email']}\n")
+
+        for i, c in enumerate(checks, 1):
+            email_str = c["email"] or "[no email]"
+            query_str = c["search_query"] or "[no search query - need email]"
+            console.print(f"[cyan]#{i}[/cyan] {c['company']} — {c['contact']} ({email_str})")
+            console.print(f"  Sent: {c['sent_date']} | Waiting: {c['days_waiting']} days")
+            console.print(f"  Gmail search: {query_str}")
+            console.print()
+
+        console.print("[bold green]Next steps:[/bold green]")
+        console.print("  1. Ask Claude to search Gmail with each query via `gmail_search_messages` MCP")
+        console.print("  2. For each reply found, run: outreach log-response <company> --text 'reply text'")
+    finally:
+        session.close()
+
+
+@app.command("scheduler-start")
+def scheduler_start_cmd(
+    daemon: bool = typer.Option(False, "--daemon", help="Run scheduler in background"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="List scheduled jobs and exit"),
+):
+    """Start the outreach scheduler or list scheduled jobs."""
+    from src.pipeline.scheduler import ScanScheduler
+
+    scheduler = ScanScheduler()
+
+    if dry_run:
+        console.print("\n[bold]Scheduled Jobs:[/bold]\n")
+        jobs = scheduler.get_jobs()
+        for job in jobs:
+            console.print(f"  {job['name']}: {job['cron']} — {job['description']}")
+        console.print(f"\n  Total: {len(jobs)} jobs")
+        return
+
+    if daemon:
+        import os
+        import subprocess
+        import sys
+
+        os.makedirs("data", exist_ok=True)
+        proc = subprocess.Popen(
+            [sys.executable, "-m", "src.pipeline.scheduler"],
+            stdout=open("data/scheduler.log", "a"),
+            stderr=open("data/scheduler.log", "a"),
+            start_new_session=True,
+        )
+        pid_path = "data/scheduler.pid"
+        with open(pid_path, "w") as f:
+            f.write(str(proc.pid))
+        console.print(f"[green]Scheduler started in background (PID: {proc.pid})[/green]")
+        console.print(f"  Log: data/scheduler.log | PID file: {pid_path}")
+        return
+
+    console.print("[bold]Starting scheduler in foreground (Ctrl+C to stop)...[/bold]")
+    try:
+        scheduler.start()
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Scheduler stopped.[/yellow]")
 
 
 if __name__ == "__main__":

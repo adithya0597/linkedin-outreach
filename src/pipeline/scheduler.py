@@ -98,9 +98,36 @@ class ScanScheduler:
             name="Daily Follow-up Alerts",
         )
 
+        # Response check — 9 AM daily
+        response_cron = (
+            self.config.get("schedules", {})
+            .get("response_check", {})
+            .get("cron", "0 9 * * *")
+        )
+        scheduler.add_job(
+            self._run_response_check,
+            CronTrigger.from_crontab(response_cron),
+            id="response_check",
+            name="Daily Response Check",
+        )
+
+        # Draft preparation — 2:30 PM daily
+        draft_cron = (
+            self.config.get("schedules", {})
+            .get("draft_preparation", {})
+            .get("cron", "30 14 * * *")
+        )
+        scheduler.add_job(
+            self._run_draft_preparation,
+            CronTrigger.from_crontab(draft_cron),
+            id="draft_preparation",
+            name="Auto Draft Preparation",
+        )
+
         logger.info(
             "Scheduler started. Full scan at 8 AM, follow-ups at 8:30 AM, "
-            "rescan at 2 PM, archive Sundays."
+            "response check at 9 AM, rescan at 2 PM, drafts at 2:30 PM, "
+            "archive Sundays."
         )
         try:
             scheduler.start()
@@ -236,3 +263,55 @@ class ScanScheduler:
             logger.info(f"Archived {count} stale postings")
         finally:
             session.close()
+
+    def _run_response_check(self) -> None:
+        """Log count of outreach records awaiting response checks."""
+        self._maybe_reload_config()
+        from src.db.database import get_engine, get_session, init_db
+        from src.db.orm import OutreachORM
+
+        logger.info("Running daily response check")
+        engine = get_engine()
+        init_db(engine)
+        session = get_session(engine)
+        try:
+            count = (
+                session.query(OutreachORM)
+                .filter(OutreachORM.stage == "Sent")
+                .count()
+            )
+            logger.info(f"Response check: {count} outreach records in 'Sent' stage")
+        finally:
+            session.close()
+
+    def _run_draft_preparation(self) -> None:
+        """Auto-prepare email drafts for stale connections."""
+        self._maybe_reload_config()
+        from src.db.database import get_engine, get_session, init_db
+        from src.integrations.gmail_bridge import GmailBridge
+
+        logger.info("Running draft preparation")
+        engine = get_engine()
+        init_db(engine)
+        session = get_session(engine)
+        try:
+            bridge = GmailBridge(session)
+            drafts = bridge.prepare_drafts()
+            count = bridge.save_drafts(drafts)
+            logger.info(f"Draft preparation: {count} new drafts prepared")
+        finally:
+            session.close()
+
+    def get_jobs(self) -> list[dict]:
+        """Read schedule.yaml and return list of job dicts with name, cron, description."""
+        self._maybe_reload_config()
+        jobs = []
+        schedules = self.config.get("schedules", {})
+        for name, cfg in schedules.items():
+            if isinstance(cfg, dict) and "cron" in cfg:
+                jobs.append({
+                    "name": name,
+                    "cron": cfg["cron"],
+                    "description": cfg.get("description", ""),
+                })
+        return jobs

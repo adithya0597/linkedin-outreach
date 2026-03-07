@@ -7,6 +7,8 @@ from datetime import datetime, timedelta
 from loguru import logger
 from sqlalchemy.orm import Session
 
+from sqlalchemy import func
+
 from src.db.orm import CompanyORM, ContactORM, OutreachORM
 
 WEEKLY_SEND_LIMIT = 100
@@ -134,3 +136,12 @@ class SendQueueManager:
             f"(limit: {effective_limit}, weekly remaining: {rate_status['remaining']})"
         )
         return queue
+
+    def get_outreach_status_summary(self) -> dict:
+        """Return outreach counts by stage."""
+        rows = (
+            self.session.query(OutreachORM.stage, func.count())
+            .group_by(OutreachORM.stage)
+            .all()
+        )
+        return {stage: count for stage, count in rows}

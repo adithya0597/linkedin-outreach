@@ -194,13 +194,15 @@ def test_config_reads_followup_alerts_cron(scheduler):
 
 @patch("apscheduler.schedulers.blocking.BlockingScheduler.start")
 @patch("apscheduler.schedulers.blocking.BlockingScheduler.add_job")
-def test_start_registers_four_jobs(mock_add_job, mock_start, scheduler):
+def test_start_registers_six_jobs(mock_add_job, mock_start, scheduler):
     scheduler.start()
 
-    assert mock_add_job.call_count == 4
+    assert mock_add_job.call_count == 6
 
     job_ids = [call.kwargs["id"] for call in mock_add_job.call_args_list]
     assert "full_scan" in job_ids
     assert "afternoon_rescan" in job_ids
     assert "weekly_archive" in job_ids
     assert "followup_alerts" in job_ids
+    assert "response_check" in job_ids
+    assert "draft_preparation" in job_ids

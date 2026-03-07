@@ -24,6 +24,14 @@ schedules:
     cron: "30 8 * * *"
     description: "Daily follow-up alert — overdue and due-today"
 
+  response_check:
+    cron: "0 9 * * *"
+    description: "Log count of outreach awaiting response checks"
+
+  draft_preparation:
+    cron: "30 14 * * *"
+    description: "Auto-prepare email drafts for stale connections"
+
   frequency_review:
     cron: "0 18 * * 5"  # Friday 6 PM
     action: "portal_analytics"

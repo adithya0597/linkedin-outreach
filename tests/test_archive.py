@@ -200,8 +200,8 @@ class TestSchedulerArchiveJob:
                 }
                 sched.start()
 
-        # Verify 4 add_job calls: full_scan, afternoon_rescan, weekly_archive, followup_alerts
-        assert mock_scheduler_instance.add_job.call_count == 4
+        # Verify 6 add_job calls: full_scan, afternoon_rescan, weekly_archive, followup_alerts, response_check, draft_preparation
+        assert mock_scheduler_instance.add_job.call_count == 6
 
         # Third call should be weekly_archive
         third_call = mock_scheduler_instance.add_job.call_args_list[2]
