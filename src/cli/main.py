@@ -41,7 +41,10 @@ for sub_app in [
     system_app,
 ]:
     for command in sub_app.registered_commands:
-        app.command(command.name)(command.callback)
+        # Typer leaves name=None when derived from function name;
+        # fall back to callback.__name__ with underscores → hyphens
+        name = command.name or command.callback.__name__.replace("_", "-")
+        app.command(name)(command.callback)
 
 
 if __name__ == "__main__":
