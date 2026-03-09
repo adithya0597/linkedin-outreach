@@ -10,8 +10,6 @@ def test_gmail_send_dry_run_displays_drafts():
 
     runner = CliRunner()
     mock_drafts = [{"to": "a@b.com", "subject": "Hello", "company": "TestCo", "body": "Test body"}]
-    with patch("src.cli.main.gmail_send_cmd.__wrapped__", None, create=True):
-        pass
     with patch("src.db.database.get_engine"), \
          patch("src.db.database.init_db"), \
          patch("src.db.database.get_session") as mock_get_session, \
