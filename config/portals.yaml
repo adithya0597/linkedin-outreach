@@ -1,39 +1,101 @@
-# Portal configuration — 13 sources (12 portals + LinkedIn)
+# Portal configuration — 19 sources across 4 tiers
+#
+# Tier S: Zero Risk (APIs) — Ashby, Greenhouse, Lever, Hiring Cafe
+# Tier A: Low Risk (httpx) — Wellfound, YC, WTTJ, startup.jobs, Top Startups, AI Jobs
+# Tier B: MCP Playwright — LinkedIn (primary), LinkedIn Alerts (Gmail), Built In, JobBoard AI
+# Tier C: Medium Risk (Patchright) — Jobright, TrueUp
+# Tier D: New Sources — JobSpy, HN Hiring
 
 portals:
-  # Tier 3 — Startup-specific (NO H1B filter)
+  # ══════════════════════════════════════════════════════════════
+  # Tier S — Zero Risk (structured APIs, no browser)
+  # ══════════════════════════════════════════════════════════════
+  ashby:
+    name: "Ashby"
+    url: "https://api.ashbyhq.com/posting-api/job-board/"
+    tier: 2
+    scraper_type: "ats_api"
+    requires_login: false
+    scan_schedule: ["8am", "2pm"]
+    search_keywords: ["AI Engineer", "ML Engineer", "LLM Engineer"]
+    ats_slugs:
+      - llamaindex
+      - langchain
+      - norm_ai
+      - cinder
+
+  greenhouse:
+    name: "Greenhouse"
+    url: "https://boards-api.greenhouse.io/v1/boards/"
+    tier: 2
+    scraper_type: "ats_api"
+    requires_login: false
+    scan_schedule: ["8am", "2pm"]
+    search_keywords: ["AI Engineer", "ML Engineer", "LLM Engineer"]
+    ats_slugs:
+      - snorkelai
+
+  lever:
+    name: "Lever"
+    url: "https://api.lever.co/v0/postings/"
+    tier: 2
+    scraper_type: "ats_api"
+    requires_login: false
+    scan_schedule: ["8am", "2pm"]
+    search_keywords: ["AI Engineer", "ML Engineer", "LLM Engineer"]
+    ats_slugs: []  # Add company slugs as discovered
+
+  hiring_cafe:
+    name: "Hiring Cafe"
+    url: "https://hiring.cafe/"
+    tier: 3
+    scraper_type: "json_api"
+    requires_login: false
+    scan_schedule: ["8am"]
+    search_keywords: ["AI Engineer", "ML Engineer"]
+
+  # ══════════════════════════════════════════════════════════════
+  # Tier A — Low Risk (httpx, no browser needed)
+  # ══════════════════════════════════════════════════════════════
   wellfound:
     name: "Wellfound"
     url: "https://wellfound.com/role/ai-engineer"
     tier: 3
-    scraper_type: "playwright"
-    requires_login: true
+    scraper_type: "nextdata"
+    requires_login: false
     scan_schedule: ["8am", "2pm"]
     search_keywords: ["AI Engineer", "ML Engineer", "LLM Engineer"]
+    notes: "Uses __NEXT_DATA__ JSON parsing — no browser needed"
 
   yc:
     name: "Work at a Startup (YC)"
     url: "https://www.workatastartup.com/"
     tier: 3
-    scraper_type: "apify"
+    scraper_type: "algolia"
     requires_login: false
     scan_schedule: ["8am", "2pm"]
     search_keywords: ["AI Engineer", "ML Engineer", "Founding Engineer"]
+    algolia:
+      app_id: "45BWZJ1SGC"
+      index: "YCCompany_production"
+
+  wttj:
+    name: "Welcome to the Jungle"
+    url: "https://www.welcometothejungle.com/en/jobs"
+    tier: 2
+    scraper_type: "algolia"
+    requires_login: false
+    scan_schedule: ["8am"]
+    search_keywords: ["AI Engineer"]
+    algolia:
+      app_id: "0VETEIO1GR"
+      index: "wttj_jobs_production"
 
   startup_jobs:
     name: "startup.jobs"
     url: "https://startup.jobs/"
     tier: 3
     scraper_type: "httpx"
-    requires_login: false
-    scan_schedule: ["8am"]
-    search_keywords: ["AI Engineer", "ML Engineer"]
-
-  hiring_cafe:
-    name: "Hiring Cafe"
-    url: "https://hiring.cafe/"
-    tier: 3
-    scraper_type: "playwright"
     requires_login: false
     scan_schedule: ["8am"]
     search_keywords: ["AI Engineer", "ML Engineer"]
@@ -47,26 +109,6 @@ portals:
     scan_schedule: ["8am"]
     search_keywords: ["AI Engineer"]
 
-  # Tier 2 — General portals (H1B cross-check required)
-  frog_hire:
-    name: "Frog Hire"
-    url: "https://froghire.ai/"
-    tier: 2
-    scraper_type: "playwright"
-    requires_login: false
-    scan_schedule: ["8am", "2pm"]
-    is_h1b_source: true
-    search_url: "https://www.froghire.ai/company?search={company}"
-
-  jobboard_ai:
-    name: "JobBoard AI"
-    url: "https://jobboardai.io/jobs"
-    tier: 2
-    scraper_type: "httpx"
-    requires_login: false
-    scan_schedule: ["8am", "2pm"]
-    search_keywords: ["AI Engineer"]
-
   ai_jobs:
     name: "AI Jobs"
     url: "https://aijobs.ai/jobs"
@@ -76,59 +118,118 @@ portals:
     scan_schedule: ["8am", "2pm"]
     search_keywords: ["AI Engineer", "ML Engineer"]
 
-  wttj:
-    name: "Welcome to the Jungle"
-    url: "https://app.welcometothejungle.com/dashboard/jobs/"
-    tier: 2
-    scraper_type: "apify"
-    requires_login: true
-    scan_schedule: ["8am"]
-    search_keywords: ["AI Engineer"]
-
-  builtin:
-    name: "Built In"
-    url: "https://builtin.com/jobs/"
-    tier: 2
-    scraper_type: "apify"
-    requires_login: false
-    scan_schedule: ["8am", "2pm"]
-    search_keywords: ["AI Engineer", "ML Engineer"]
-
-  trueup:
-    name: "TrueUp"
-    url: "https://trueup.io/myjobs"
-    tier: 2
-    scraper_type: "apify"
-    requires_login: false
-    scan_schedule: ["8am", "2pm"]
-    search_keywords: ["AI Engineer"]
-
-  jobright:
-    name: "Jobright AI"
-    url: "https://jobright.ai/jobs/recommend"
-    tier: 2
-    scraper_type: "playwright"
-    requires_login: true
-    scan_schedule: ["8am", "2pm"]
-    search_keywords: ["AI Engineer", "ML Engineer"]
-
-  # Tier 1 — LinkedIn (H1B cross-check required)
+  # ══════════════════════════════════════════════════════════════
+  # Tier B — MCP Playwright (interactive, logged-in sessions)
+  # ══════════════════════════════════════════════════════════════
   linkedin:
     name: "LinkedIn"
     url: "https://www.linkedin.com/jobs/"
     tier: 1
-    scraper_type: "playwright"
+    scraper_type: "mcp_playwright"
     requires_login: true
-    scan_schedule: ["8am", "2pm"]
+    scan_schedule: ["8am"]
     search_keywords:
       - "AI Engineer"
       - "ML Engineer"
       - "founding engineer AI"
       - "LLM Engineer"
       - "GenAI Engineer"
+    safety_limits:
+      max_pages: 5
+      delay_min_seconds: 3
+      delay_max_seconds: 7
+      max_scans_per_day: 1
     premium_features:
       - "300_char_connection"
       - "inmail_credits"
       - "profile_viewers"
       - "top_applicant"
       - "unlimited_browsing"
+
+  linkedin_alerts:
+    name: "LinkedIn Alerts"
+    url: "gmail:jobs-noreply@linkedin.com"
+    tier: 1
+    scraper_type: "gmail_ingest"
+    requires_login: false
+    scan_schedule: ["8am"]
+    search_keywords: ["AI Engineer", "ML Engineer"]
+    notes: "Supplementary — parses LinkedIn Job Alert emails via Gmail"
+
+  builtin:
+    name: "Built In"
+    url: "https://builtin.com/jobs/"
+    tier: 2
+    scraper_type: "mcp_playwright"
+    requires_login: false
+    scan_schedule: ["8am", "2pm"]
+    search_keywords: ["AI Engineer", "ML Engineer"]
+    notes: "Probe portal — previously demoted (zero startup matches)"
+
+  jobboard_ai:
+    name: "JobBoard AI"
+    url: "https://jobboardai.io/jobs"
+    tier: 2
+    scraper_type: "mcp_playwright"
+    requires_login: false
+    scan_schedule: ["8am", "2pm"]
+    search_keywords: ["AI Engineer"]
+    notes: "Probe portal — previously demoted (zero listings)"
+
+  # ══════════════════════════════════════════════════════════════
+  # Tier C — Medium Risk (Patchright stealth browser)
+  # ══════════════════════════════════════════════════════════════
+  jobright:
+    name: "Jobright AI"
+    url: "https://jobright.ai/jobs"
+    tier: 2
+    scraper_type: "patchright"
+    requires_login: false
+    scan_schedule: ["8am", "2pm"]
+    search_keywords: ["AI Engineer", "ML Engineer"]
+    anti_bot_difficulty: 4  # out of 10
+
+  trueup:
+    name: "TrueUp"
+    url: "https://www.trueup.io/jobs"
+    tier: 2
+    scraper_type: "patchright"
+    requires_login: false
+    scan_schedule: ["8am", "2pm"]
+    search_keywords: ["AI Engineer"]
+    anti_bot_difficulty: 4  # out of 10
+
+  # ══════════════════════════════════════════════════════════════
+  # Tier D — New Sources (additional coverage)
+  # ══════════════════════════════════════════════════════════════
+  jobspy:
+    name: "JobSpy"
+    url: "https://github.com/Bunsly/JobSpy"
+    tier: 2
+    scraper_type: "aggregator"
+    requires_login: false
+    scan_schedule: ["8am"]
+    search_keywords: ["AI Engineer", "ML Engineer"]
+    notes: "Multi-source aggregator (Indeed, Glassdoor, ZipRecruiter)"
+
+  hn_hiring:
+    name: "HN Hiring"
+    url: "https://hnhiring.com"
+    tier: 3
+    scraper_type: "httpx"
+    requires_login: false
+    scan_schedule: ["8am"]
+    search_keywords: ["AI", "ML", "LLM"]
+    notes: "Hacker News Who is Hiring monthly threads"
+
+  # ══════════════════════════════════════════════════════════════
+  # H1B Verification Sources (not job portals)
+  # ══════════════════════════════════════════════════════════════
+  frog_hire:
+    name: "Frog Hire"
+    url: "https://froghire.ai/"
+    tier: 2
+    scraper_type: "verification"
+    requires_login: false
+    is_h1b_source: true
+    search_url: "https://www.froghire.ai/company?search={company}"

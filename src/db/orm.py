@@ -66,6 +66,8 @@ class CompanyORM(Base):
     disqualification_reason = Column(Text, default="")
     needs_review = Column(Boolean, default=False)
     data_completeness = Column(Float, default=0.0)
+    ats_platform = Column(String(50), default="")
+    ats_slug = Column(String(255), default="")
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
     last_synced_at = Column(DateTime, nullable=True)

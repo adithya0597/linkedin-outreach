@@ -121,6 +121,7 @@ class Pipeline:
         self,
         portals: list[str] | None = None,
         keywords: list[str] | None = None,
+        days: int = 30,
     ) -> dict:
         """Run scraper search across portals, persist results."""
         import time
@@ -149,7 +150,7 @@ class Pipeline:
                 continue
             start = time.time()
             try:
-                postings = await s.search(kws)
+                postings = await s.search(kws, days=days)
                 found, new, new_co = persist_scan_results(
                     self.session, s.name, postings, duration=time.time() - start
                 )

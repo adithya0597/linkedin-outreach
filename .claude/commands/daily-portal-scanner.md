@@ -1,91 +1,119 @@
 ---
 name: daily-portal-scanner
-description: "**Daily Job Portal Scanner**: Scans 13 job sources (12 AI/ML job portals + LinkedIn) with three-tier H1B filtering for new roles matching startup criteria (under 1000 employees, Seed-Series C, AI-native, US HQ). Uses tiered H1B rules: startup portals = no filter, general portals + LinkedIn = cross-check Frog Hire/H1BGrader/MyVisaJobs, include unless explicitly no sponsorship. Use this skill whenever the user mentions scanning portals, checking job boards, finding new jobs, daily scan, job search update, new listings, portal check, or wants to discover fresh AI/ML engineering roles. Also trigger when the user says things like 'any new jobs today', 'check for openings', 'scan for roles', or 'what's new on the job boards'. This is the primary job discovery tool — use it proactively when the user starts a new session and hasn't scanned recently."
+description: "**Daily Job Portal Scanner**: Scans 19 job sources across 4 tiers (APIs, httpx, MCP Playwright, Patchright stealth) with three-tier H1B filtering for new roles matching startup criteria (under 1000 employees, Seed-Series C, AI-native, US HQ). Use this skill whenever the user mentions scanning portals, checking job boards, finding new jobs, daily scan, job search update, new listings, portal check, or wants to discover fresh AI/ML engineering roles. Also trigger when the user says things like 'any new jobs today', 'check for openings', 'scan for roles', or 'what's new on the job boards'. This is the primary job discovery tool."
 ---
 
-# Daily Portal Scanner
+# Daily Portal Scanner — 4-Tier Architecture
 
-Scan 13 job sources (12 portals + LinkedIn) for new AI/ML engineer roles using three-tier H1B filtering. Compare against the existing target list to flag new opportunities.
+Scan 19 job sources across 4 tiers for new AI/ML engineer roles using three-tier H1B filtering.
 
 ## Context
 
-You are scanning job portals for Bala Adithya Malaraju, an AI Engineer on an F1 student visa who REQUIRES H1B sponsorship. He specializes in Graph RAG, Enterprise LLM pipelines, healthcare data, and mainframe-to-cloud migration. The goal is to find AI-native startups that match strict criteria. H1B filtering follows a **three-tier system** — not all portals are filtered the same way.
+Scanning for Bala Adithya Malaraju, AI Engineer on F1 visa requiring H1B sponsorship. Specializes in Graph RAG, Enterprise LLM pipelines, healthcare data. Goal: find AI-native startups matching strict criteria.
 
-## Target Criteria (ALL must pass — except H1B which is tiered)
+## Target Criteria
 
 - **Employees:** <1,000
 - **Funding:** Seed through Series C
-- **Product:** AI/ML as CORE product (not just "uses AI")
+- **Product:** AI/ML as CORE product
 - **Location:** USA headquarters ONLY
-- **H1B Sponsorship:** **TIERED** — see below
-- **Disqualified:** FAANG, Big Tech, consulting/staffing firms, non-US companies, companies that explicitly won't sponsor H1B
+- **H1B:** Tiered filtering (see below)
+- **Disqualified:** FAANG, Big Tech, consulting/staffing, non-US, explicit no-H1B
 
-## THREE-TIER H1B FILTERING SYSTEM (CRITICAL)
+## Scan Architecture — 4 Phases
 
-### Tier 3 — Startup-Specific Portals: **NO H1B filter**
-Add ALL companies matching profile. Do NOT cross-check H1B.
-- workatastartup.com (YC), wellfound.com, startup.jobs, hiring.cafe, topstartups.io
+### Phase 1: Tier S — Zero Risk APIs (run first, ~30 seconds)
+```
+python -m src.cli.main scan --portal ashby
+python -m src.cli.main scan --portal greenhouse
+python -m src.cli.main scan --portal lever
+python -m src.cli.main scan --portal hiring_cafe
+```
+These hit structured JSON APIs directly. No anti-bot risk. Run all simultaneously.
 
-### Tier 2 — General Job Portals: **H1B cross-check required**
-Cross-check each company: Frog Hire → H1BGrader → MyVisaJobs. Include UNLESS explicit "no sponsorship." No data = still include.
-- froghire.com ⭐ (scan first), jobboardai.io, aijobs.ai, welcometothejungle.com, builtin.com, trueup.io, jobright.ai
+### Phase 2: Tier A — Low Risk httpx (run second, ~2 minutes)
+```
+python -m src.cli.main scan --portal wellfound    # __NEXT_DATA__ JSON
+python -m src.cli.main scan --portal yc            # Algolia API
+python -m src.cli.main scan --portal wttj          # Algolia API
+python -m src.cli.main scan --portal startup_jobs   # httpx + BeautifulSoup
+python -m src.cli.main scan --portal top_startups   # httpx + BeautifulSoup
+python -m src.cli.main scan --portal ai_jobs        # httpx + BeautifulSoup
+python -m src.cli.main scan --portal hn_hiring      # HN Who is Hiring
+```
+No browser needed. Run sequentially to respect rate limits.
 
-### Tier 1 — LinkedIn: **H1B cross-check required** (same as Tier 2)
-- First run: last 7 days only. Subsequent: newly posted since last scan.
+### Phase 3: Tier B — MCP Playwright (run third, interactive)
 
-### H1B Verification Source Priority (Tier 1 & 2 only)
-1. **Frog Hire** (froghire.ai) — PRIMARY at https://www.froghire.ai/company?search=COMPANY_NAME
-2. H1BGrader / MyVisaJobs — Secondary, only if Frog Hire has no data
-3. No data = still include. Mark "Unknown."
+**LinkedIn (PRIMARY):** Use the `/scan-linkedin` skill.
+- MCP Playwright with logged-in session
+- Safety limits: max 5 pages, 3-7s delays, 1 scan/day
+- CAPTCHA detection → immediate stop
 
-## Scanning Cadence
-- **First run:** LinkedIn = last 7 days. All other portals = ALL current listings.
-- **Subsequent runs:** ALL 13 sources = only newly posted since last scan.
+**LinkedIn Alerts (SUPPLEMENTARY):** Run first to get baseline.
+- Check Gmail for LinkedIn Job Alert emails (from:jobs-noreply@linkedin.com)
+- Parse HTML for job cards → persist to DB
+- Zero detection risk
 
-## Dual-Scan Schedule
+**Built In & JobBoard AI (PROBES):**
+- Use `/scan-builtin` and `/scan-jobboard-ai` skills
+- These were previously demoted — probe to check current state
+- Only run if time permits
 
-### 8:00 AM — Full Scan (all 13 sources)
-All 12 portals + LinkedIn. Comprehensive sweep.
+### Phase 4: Tier C — Patchright Stealth (run last, ~3 minutes)
+```
+python -m src.cli.main scan --portal jobright
+python -m src.cli.main scan --portal trueup
+```
+Uses Patchright (CDP leak patched) + behavioral mimicry. Run one at a time.
+If CAPTCHA/block detected → stop immediately, fall back to MCP skill.
 
-### 2:00–3:00 PM — Afternoon Rescan (9 sources, new listings only)
-Wellfound, YC Work at a Startup, Frog Hire, LinkedIn, Built In, TrueUp, Jobright AI, AI Jobs, JobBoard AI.
+### Phase 5: Tier D — New Sources (optional, bonus coverage)
+```
+python -m src.cli.main scan --portal jobspy
+```
+JobSpy aggregator (Indeed, Glassdoor, ZipRecruiter). Run if other phases complete quickly.
 
-### Morning-Only (4 sources)
-startup.jobs, Hiring Cafe, Top Startups, Welcome to the Jungle — lower posting velocity.
+## THREE-TIER H1B FILTERING SYSTEM
 
-### Frequency Review
-Assignments are data-driven via Portal_Analytics.md. Score each portal weekly (0–12). Promote at 4+ points for 2 weeks. Demote below 3 for 2 weeks.
+### Tier 3 — Startup Portals: NO H1B filter
+Add ALL matching companies. Do NOT cross-check H1B.
+- Wellfound, YC, startup.jobs, Hiring Cafe, Top Startups, HN Hiring
 
-## Search Keywords
-Primary: "AI Engineer", "ML Engineer", "LLM Engineer"
-Secondary: "RAG", "Knowledge Graph", "NLP Engineer", "GenAI Engineer"
-Location: United States / Remote (US)
+### Tier 2 — General Portals: H1B cross-check required
+Cross-check: Frog Hire → H1BGrader → MyVisaJobs. Include UNLESS explicit "no sponsorship."
+- AI Jobs, WTTJ, Built In, TrueUp, Jobright, Ashby, Greenhouse, Lever, JobBoard AI, JobSpy
 
-## Scan Steps
+### Tier 1 — LinkedIn: H1B cross-check required (same as Tier 2)
+- LinkedIn (MCP Playwright), LinkedIn Alerts (Gmail)
 
-For each portal:
-1. **Identify tier** → determines H1B rules
-2. **Open and search** using primary keywords + filters
-3. **Extract** for each role: Company, role title, salary, location, posting date, URL, employee count, H1B status
-4. **Apply H1B filter by tier:**
-   - Tier 3: Skip H1B check. Mark "N/A — startup portal"
-   - Tier 2: Cross-check Frog Hire → H1BGrader → MyVisaJobs. Include unless explicit "no sponsorship"
-   - Tier 1: Same as Tier 2
-5. **Validate** remaining criteria (employees, funding, AI-native, US HQ)
-6. **Compare** against `Startup_Target_List.md` in the project root — flag NEW
-7. **Log** portal health and results
-8. **Collect analytics** per portal: total listings, new count, AM/PM timestamps, pass rate, duplicates, disappeared listings, scan duration (minutes)
+### H1B Verification Priority
+1. **Frog Hire** (froghire.ai) — PRIMARY
+2. H1BGrader / MyVisaJobs — Secondary
+3. No data = still include, mark "Unknown"
+
+## Quick Scan Mode
+For a quick scan of just the fastest sources:
+```
+python -m src.cli.main scan --portal ashby
+python -m src.cli.main scan --portal greenhouse
+python -m src.cli.main scan --portal hiring_cafe
+python -m src.cli.main scan --portal yc
+python -m src.cli.main scan --portal wellfound
+```
+
+## Full Scan (all programmatic sources)
+```
+python -m src.cli.main scan --portal all --smart --days 7
+```
 
 ## Output
 
-Create `Daily_Scan_[YYYY-MM-DD].md` in the project root with scan summary, new leads table (including tier and H1B status), portal status, H1B verification log, and actions needed.
+Create `Daily_Scan_[YYYY-MM-DD].md` with:
+- Scan summary by tier (S/A/B/C/D)
+- New leads table (tier, H1B status, source)
+- Portal health status
+- H1B verification log
+- Actions needed
 
-Update `Startup_Target_List.md`, Notion CRM, and `Portal_Analytics.md` (per-portal metrics + duplicate tracking).
-
-## Edge Cases
-- Portal down: note and move on
-- CAPTCHA: skip, note for user
-- Ambiguous company size: mark "Needs Validation"
-- Duplicates: note first portal, don't double-count
-- No H1B data (Tier 1/2): still include, mark "⚠️ Unknown"
-- Explicit "no sponsorship" (Tier 1/2): exclude, mark "❌ Explicit No"
+Update: Notion CRM, Portal_Analytics.md, Startup_Target_List.md.

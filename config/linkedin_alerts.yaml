@@ -1,0 +1,30 @@
+# LinkedIn Job Alert email parsing configuration
+#
+# The LinkedInAlertScraper parses LinkedIn Job Alert emails for supplementary job coverage.
+# Alert emails are sent by LinkedIn to the configured email address based on saved job searches.
+
+gmail:
+  # Gmail search query to find LinkedIn job alert emails
+  query: "from:jobs-noreply@linkedin.com subject:new jobs"
+  # Max emails to process per scan
+  max_emails: 20
+  # Only process emails from the last N days
+  days_lookback: 7
+
+# Keywords for LinkedIn Job Alerts (set these up in LinkedIn)
+# Each keyword should have a corresponding saved job search on LinkedIn
+alert_keywords:
+  - "AI Engineer"
+  - "ML Engineer"
+  - "LLM Engineer"
+  - "GenAI Engineer"
+  - "founding engineer AI"
+
+# Filters applied after parsing
+filters:
+  # Skip Easy Apply postings (per outreach rules)
+  skip_easy_apply: true
+  # Only include US locations
+  us_only: true
+  # Company size filter (applied via LinkedIn alert settings, not here)
+  max_company_size: 1000

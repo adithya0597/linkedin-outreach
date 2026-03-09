@@ -3,12 +3,26 @@
 from __future__ import annotations
 
 import json
+import re
+import string
 from datetime import datetime
 
 from sqlalchemy.orm import Session
 
 from src.db.orm import CompanyORM, JobPostingORM, ScanORM
 from src.models.job_posting import JobPosting
+
+
+def _normalize(text: str) -> str:
+    """Normalize text for composite key comparison.
+
+    Lowercase, strip whitespace, remove punctuation.
+    """
+    text = text.lower().strip()
+    text = text.translate(str.maketrans("", "", string.punctuation))
+    # Collapse multiple spaces
+    text = re.sub(r"\s+", " ", text)
+    return text
 
 
 def posting_to_orm(posting: JobPosting) -> JobPostingORM:
@@ -71,7 +85,7 @@ def persist_scan_results(
     duration: float = 0.0,
     errors: str = "",
 ) -> tuple[int, int, int]:
-    """Persist scan results, dedup by URL. Returns (total_found, new_inserted, new_companies)."""
+    """Persist scan results, dedup by URL + composite key. Returns (total_found, new_inserted, new_companies)."""
     # Get existing URLs for dedup
     existing_urls = {
         row[0]
@@ -79,6 +93,15 @@ def persist_scan_results(
         .filter(JobPostingORM.url != "")
         .all()
     }
+
+    # Build composite key set from existing DB records for secondary dedup
+    existing_composites: set[tuple[str, str]] = set()
+    for row in session.query(JobPostingORM.company_name, JobPostingORM.title).all():
+        if row[0] and row[1]:
+            existing_composites.add((_normalize(row[0]), _normalize(row[1])))
+
+    # Track intra-batch composites to avoid duplicates within a single scan
+    batch_composites: set[tuple[str, str]] = set()
 
     # Preload existing company names for tracking new creations
     existing_company_names = {
@@ -89,8 +112,17 @@ def persist_scan_results(
 
     new_count = 0
     for posting in postings:
+        # Primary dedup: URL
         if posting.url and posting.url in existing_urls:
             continue
+
+        # Secondary dedup: composite key (normalized company_name, normalized title)
+        comp_key = (_normalize(posting.company_name or ""), _normalize(posting.title or ""))
+        if comp_key[0] and comp_key[1]:
+            if comp_key in existing_composites or comp_key in batch_composites:
+                continue
+            batch_composites.add(comp_key)
+
         orm = posting_to_orm(posting)
 
         # Link posting to company (get or create)

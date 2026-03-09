@@ -88,6 +88,13 @@ class SourcePortal(str, Enum):
     BUILT_IN = "Built In"
     TRUEUP = "TrueUp"
     JOBRIGHT = "Jobright AI"
+    ASHBY = "Ashby"
+    GREENHOUSE = "Greenhouse"
+    LEVER = "Lever"
+    LINKEDIN_ALERTS = "LinkedIn Alerts"
+    JOBSPY = "JobSpy"
+    HN_HIRING = "HN Hiring"
+    SCHEMA_ORG = "Schema.org"
     WEB_SEARCH = "Web Search"
     MANUAL = "Manual"
 
@@ -99,8 +106,9 @@ class SourcePortal(str, Enum):
             SourcePortal.STARTUP_JOBS,
             SourcePortal.HIRING_CAFE,
             SourcePortal.TOP_STARTUPS,
+            SourcePortal.HN_HIRING,
         }
-        tier_1 = {SourcePortal.LINKEDIN}
+        tier_1 = {SourcePortal.LINKEDIN, SourcePortal.LINKEDIN_ALERTS}
         if self in tier_3:
             return PortalTier.TIER_3
         if self in tier_1:

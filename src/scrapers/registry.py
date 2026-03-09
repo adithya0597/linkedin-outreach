@@ -47,55 +47,81 @@ class PortalRegistry:
 
 
 def build_default_registry() -> PortalRegistry:
-    """Create a registry with all portal scrapers pre-registered."""
-    from src.scrapers.apify_scraper import (
-        BuiltInScraper,
-        TrueUpScraper,
-        WTTJScraper,
-        YCScraper,
-    )
+    """Create a registry with all portal scrapers pre-registered.
+
+    Four-tier architecture:
+      Tier S — Zero Risk (APIs): Ashby, Greenhouse, Lever, Hiring Cafe
+      Tier A — Low Risk (httpx): Wellfound (__NEXT_DATA__), YC (Algolia),
+               WTTJ (Algolia), startup.jobs, Top Startups, AI Jobs
+      Tier B — MCP Playwright: LinkedIn (primary), Built In, JobBoard AI
+      Tier C — Medium Risk (Patchright): Jobright, TrueUp
+      Tier D — New Sources: JobSpy, HN Hiring
+    """
+    from src.scrapers.algolia_scraper import WTTJAlgoliaScraper, YCAlgoliaScraper
+    from src.scrapers.ats_scraper import AshbyScraper, GreenhouseScraper
+    from src.scrapers.hn_hiring_scraper import HNHiringScraper
     from src.scrapers.httpx_scraper import (
         AIJobsScraper,
-        JobBoardAIScraper,
+        HiringCafeHttpxScraper,
         StartupJobsScraper,
         TopStartupsScraper,
     )
-    from src.scrapers.playwright_scraper import (
-        HiringCafeScraper,
-        JobrightScraper,
-        LinkedInScraper,
-        WellfoundScraper,
+    from src.scrapers.jobspy_scraper import JobSpyScraper
+    from src.scrapers.lever_scraper import LeverScraper
+    from src.scrapers.linkedin_email_ingest import LinkedInAlertScraper
+    from src.scrapers.mcp_scraper import MCPPlaywrightScraper
+    from src.scrapers.patchright_scraper import (
+        JobrightPatchrightScraper,
+        TrueUpPatchrightScraper,
     )
+    from src.scrapers.wellfound_nextdata import WellfoundNextDataScraper
 
     # Shared rate limiter with per-portal rates
     rl = RateLimiter(default_tokens_per_second=1.0)
-    rl.configure("LinkedIn", 0.2)           # 1 req / 5s (anti-bot)
-    rl.configure("Wellfound", 0.5)          # Playwright portals
-    rl.configure("Jobright AI", 0.5)
-    rl.configure("Hiring Cafe", 0.5)
-    rl.configure("Work at a Startup (YC)", 1.0)  # Apify
-    rl.configure("TrueUp", 1.0)
-    rl.configure("Built In", 1.0)
-    rl.configure("Welcome to the Jungle", 1.0)
+    rl.configure("LinkedIn", 0.2)                  # 1 req / 5s (anti-bot)
+    rl.configure("Wellfound", 0.5)                 # httpx __NEXT_DATA__
+    rl.configure("Jobright AI", 0.5)               # Patchright stealth
+    rl.configure("TrueUp", 0.5)                    # Patchright stealth
+    rl.configure("Hiring Cafe", 1.0)               # httpx JSON API
+    rl.configure("Work at a Startup (YC)", 1.0)    # Algolia API
+    rl.configure("Welcome to the Jungle", 1.0)     # Algolia API
+    rl.configure("Built In", 1.0)                  # MCP Playwright
+    rl.configure("Ashby", 2.0)                     # ATS API
+    rl.configure("Greenhouse", 2.0)                # ATS API
+    rl.configure("Lever", 2.0)                     # ATS API
 
     registry = PortalRegistry()
 
     scrapers: list[tuple[str, BaseScraper]] = [
-        # Playwright scrapers
-        ("linkedin", LinkedInScraper(rate_limiter=rl)),
-        ("wellfound", WellfoundScraper(rate_limiter=rl)),
-        ("jobright", JobrightScraper(rate_limiter=rl)),
-        ("hiring_cafe", HiringCafeScraper(rate_limiter=rl)),
-        # httpx scrapers
+        # ── Tier S: Zero Risk (APIs) ──────────────────────────────
+        ("ashby", AshbyScraper(rate_limiter=rl)),
+        ("greenhouse", GreenhouseScraper(rate_limiter=rl)),
+        ("lever", LeverScraper(rate_limiter=rl)),
+        ("hiring_cafe", HiringCafeHttpxScraper(rate_limiter=rl)),
+        # ── Tier A: Low Risk (httpx, no browser) ─────────────────
+        ("wellfound", WellfoundNextDataScraper(rate_limiter=rl)),
+        ("yc", YCAlgoliaScraper(rate_limiter=rl)),
+        ("wttj", WTTJAlgoliaScraper(rate_limiter=rl)),
         ("startup_jobs", StartupJobsScraper(rate_limiter=rl)),
         ("top_startups", TopStartupsScraper(rate_limiter=rl)),
         ("ai_jobs", AIJobsScraper(rate_limiter=rl)),
-        ("jobboard_ai", JobBoardAIScraper(rate_limiter=rl)),
-        # Apify scrapers
-        ("yc", YCScraper(rate_limiter=rl)),
-        ("builtin", BuiltInScraper(rate_limiter=rl)),
-        ("wttj", WTTJScraper(rate_limiter=rl)),
-        ("trueup", TrueUpScraper(rate_limiter=rl)),
+        # ── Tier B: MCP Playwright (interactive, logged-in) ──────
+        ("linkedin", MCPPlaywrightScraper(
+            SourcePortal.LINKEDIN, skill_name="scan-linkedin", rate_limiter=rl,
+        )),
+        ("linkedin_alerts", LinkedInAlertScraper(rate_limiter=rl)),
+        ("builtin", MCPPlaywrightScraper(
+            SourcePortal.BUILT_IN, skill_name="scan-builtin", rate_limiter=rl,
+        )),
+        ("jobboard_ai", MCPPlaywrightScraper(
+            SourcePortal.JOBBOARD_AI, skill_name="scan-jobboard-ai", rate_limiter=rl,
+        )),
+        # ── Tier C: Medium Risk (Patchright stealth browser) ─────
+        ("jobright", JobrightPatchrightScraper(rate_limiter=rl)),
+        ("trueup", TrueUpPatchrightScraper(rate_limiter=rl)),
+        # ── Tier D: New Sources ───────────────────────────────────
+        ("jobspy", JobSpyScraper(rate_limiter=rl)),
+        ("hn_hiring", HNHiringScraper(rate_limiter=rl)),
     ]
 
     for name, scraper in scrapers:
