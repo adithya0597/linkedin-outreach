@@ -10,6 +10,8 @@ from dataclasses import dataclass
 
 from loguru import logger
 
+from src.outreach.constants import ALL_CLASSIFICATIONS
+
 
 @dataclass
 class ClassificationResult:
@@ -20,7 +22,7 @@ class ClassificationResult:
     suggested_action: str    # Next step recommendation
 
 
-VALID_CLASSIFICATIONS = {"POSITIVE", "NEGATIVE", "NEUTRAL", "REFERRAL", "AUTO_REPLY"}
+VALID_CLASSIFICATIONS = set(ALL_CLASSIFICATIONS)
 
 SYSTEM_PROMPT = """You are a LinkedIn outreach response classifier for a job seeker.
 Classify the response into exactly one category:

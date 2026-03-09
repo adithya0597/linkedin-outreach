@@ -8,17 +8,8 @@ from loguru import logger
 from sqlalchemy.orm import Session
 
 from src.db.orm import CompanyORM, OutreachORM
-
-
-STEP_ORDER: dict[str, int] = {
-    "pre_engagement": 0,
-    "connection_request": 1,
-    "follow_up": 2,
-    "deeper_engagement": 3,
-    "final_touch": 4,
-}
-
-ALL_STEPS = list(STEP_ORDER.keys())
+from src.outreach.constants import STEP_INDEX as STEP_ORDER
+from src.outreach.constants import STEP_ORDER as ALL_STEPS
 
 
 class SequenceTracker:

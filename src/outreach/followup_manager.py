@@ -8,24 +8,14 @@ from loguru import logger
 from sqlalchemy.orm import Session
 
 from src.db.orm import CompanyORM, OutreachORM
+from src.outreach.constants import SEQUENCE_GAPS, STEP_ORDER
 
 
 class FollowUpManager:
     """Manages follow-up scheduling, overdue detection, and daily alerts."""
 
-    SEQUENCE_GAPS: dict[str, int] = {
-        "connection_request->follow_up": 3,
-        "follow_up->deeper_engagement": 5,
-        "deeper_engagement->final_touch": 5,
-    }
-
-    STEP_ORDER: list[str] = [
-        "pre_engagement",
-        "connection_request",
-        "follow_up",
-        "deeper_engagement",
-        "final_touch",
-    ]
+    SEQUENCE_GAPS = SEQUENCE_GAPS
+    STEP_ORDER = STEP_ORDER
 
     def __init__(self, session: Session):
         self.session = session

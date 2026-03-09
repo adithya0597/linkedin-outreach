@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-import asyncio
 from datetime import datetime
 
 from loguru import logger
 from sqlalchemy.orm import Session
 
 from src.db.orm import CompanyORM, OutreachORM
+from src.integrations.notion_base import NOTION_BASE
 from src.integrations.notion_sync import NotionCRM
 
 # Map outreach stages to Notion Application stages
@@ -127,7 +127,7 @@ class OutreachNotionSync:
                     # Update Notes field with sequence progress
                     await self.crm._request(
                         "PATCH",
-                        f"https://api.notion.com/v1/pages/{page_id}",
+                        f"{NOTION_BASE}/pages/{page_id}",
                         json={
                             "properties": {
                                 "Notes": {

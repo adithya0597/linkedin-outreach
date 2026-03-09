@@ -13,17 +13,16 @@ from loguru import logger
 from sqlalchemy.orm import Session
 
 from src.db.orm import CompanyORM, OutreachORM
+from src.outreach.constants import (
+    ALL_CLASSIFICATIONS,
+    AUTO_REPLY,
+    NEGATIVE,
+    NEUTRAL,
+    POSITIVE,
+    REFERRAL,
+)
 from src.outreach.llm_classifier import get_classifier
 from src.outreach.sequence_tracker import SequenceTracker
-
-# Response classifications
-POSITIVE = "POSITIVE"
-NEUTRAL = "NEUTRAL"
-NEGATIVE = "NEGATIVE"
-REFERRAL = "REFERRAL"
-AUTO_REPLY = "AUTO_REPLY"
-
-ALL_CLASSIFICATIONS = [POSITIVE, NEUTRAL, NEGATIVE, REFERRAL, AUTO_REPLY]
 
 # ---------------------------------------------------------------------------
 # v2 keyword lists (expanded from v1's 5 POSITIVE keywords)

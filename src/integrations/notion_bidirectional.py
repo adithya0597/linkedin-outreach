@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from src.db.orm import CompanyORM
 from src.integrations.notion_incremental import NotionSyncState
-from src.integrations.notion_sync import NotionCRM
+from src.integrations.notion_sync import NotionCRM, NotionSchemas
 
 
 class ConflictStrategy(str, Enum):
@@ -19,23 +19,12 @@ class ConflictStrategy(str, Enum):
     NEWEST_WINS = "NEWEST_WINS"
 
 
-# Fields that are compared for conflicts (ORM field names synced via Notion)
+# Derived from NotionSchemas._FIELD_MAP, excluding identity/timestamp fields.
+_NON_SYNC_ORM_FIELDS = {"name", "created_at", "updated_at"}
 _SYNC_FIELDS = [
-    "tier",
-    "fit_score",
-    "h1b_status",
-    "stage",
-    "role",
-    "hiring_manager",
-    "role_url",
-    "salary_range",
-    "source_portal",
-    "notes",
-    "differentiators",
-    "linkedin_url",
-    "hiring_manager_linkedin",
-    "why_fit",
-    "best_stats",
+    orm_field
+    for orm_field, _ in NotionSchemas._FIELD_MAP.values()
+    if orm_field not in _NON_SYNC_ORM_FIELDS
 ]
 
 

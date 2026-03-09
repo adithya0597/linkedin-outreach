@@ -2,19 +2,18 @@
 
 from __future__ import annotations
 
-import asyncio
 import os
-import time
 from datetime import datetime
 
-import httpx
 from loguru import logger
 from sqlalchemy.orm import Session
 
 from src.db.orm import CompanyORM, ContactORM, OutreachORM
-
-NOTION_VERSION = "2022-06-28"
-NOTION_BASE = "https://api.notion.com/v1"
+from src.integrations.notion_base import (
+    NOTION_BASE,
+    NotionAPIClient,
+    NotionPropertyConverter,
+)
 
 
 class NotionContactSchemas:
@@ -75,74 +74,19 @@ class NotionContactSchemas:
         result["_notion_page_id"] = page.get("id")
         return result
 
-    @classmethod
-    def _to_notion_property(cls, value, notion_type: str) -> dict | None:
-        if value is None or value == "":
-            return None
-
-        if notion_type == "title":
-            return {"title": [{"text": {"content": str(value)}}]}
-        if notion_type == "rich_text":
-            return {"rich_text": [{"text": {"content": str(value)}}]}
-        if notion_type == "number":
-            try:
-                return {
-                    "number": float(value)
-                    if not isinstance(value, (int, float))
-                    else value
-                }
-            except (TypeError, ValueError):
-                return None
-        if notion_type == "select":
-            return {"select": {"name": str(value)}}
-        if notion_type == "checkbox":
-            return {"checkbox": bool(value)}
-        if notion_type == "url":
-            return {"url": str(value)}
-        if notion_type == "date":
-            if isinstance(value, datetime):
-                return {"date": {"start": value.strftime("%Y-%m-%d")}}
-            return {"date": {"start": str(value)[:10]}}
-        return None
-
-    @classmethod
-    def _from_notion_property(cls, prop: dict, notion_type: str):
-        ptype = prop.get("type", notion_type)
-        if ptype == "title":
-            parts = prop.get("title", [])
-            return parts[0]["plain_text"] if parts else ""
-        if ptype == "rich_text":
-            parts = prop.get("rich_text", [])
-            return parts[0]["plain_text"] if parts else ""
-        if ptype == "number":
-            return prop.get("number")
-        if ptype == "select":
-            sel = prop.get("select")
-            return sel["name"] if sel else ""
-        if ptype == "checkbox":
-            return prop.get("checkbox", False)
-        if ptype == "url":
-            return prop.get("url", "")
-        if ptype == "date":
-            d = prop.get("date")
-            return d["start"] if d else None
-        return None
+    # Property converters delegated to shared module
+    _to_notion_property = staticmethod(NotionPropertyConverter.to_notion)
+    _from_notion_property = staticmethod(NotionPropertyConverter.from_notion)
 
 
-class NotionContactSync:
+class NotionContactSync(NotionAPIClient):
     """Sync contacts between local SQLite and Notion database."""
 
     def __init__(self, api_key: str, contacts_database_id: str, session: Session):
+        super().__init__(api_key)
         self.api_key = api_key
         self.contacts_database_id = contacts_database_id
         self.session = session
-        self._headers = {
-            "Authorization": f"Bearer {api_key}",
-            "Notion-Version": NOTION_VERSION,
-            "Content-Type": "application/json",
-        }
-        self._min_interval = 1.0 / 3.0
-        self._last_request_time = 0.0
 
     def _get_outreach_stage(self, contact: ContactORM) -> str:
         """Get most recent outreach stage for this contact."""
@@ -325,33 +269,4 @@ class NotionContactSync:
             "0c412604-a409-47ab-8c04-29f112c2c683",
         )
 
-    async def _request(self, method: str, url: str, **kwargs) -> dict:
-        """Rate-limited HTTP request with retry on 429."""
-        max_retries = 5
-        for attempt in range(max_retries):
-            elapsed = time.monotonic() - self._last_request_time
-            if elapsed < self._min_interval:
-                await asyncio.sleep(self._min_interval - elapsed)
-
-            self._last_request_time = time.monotonic()
-
-            async with httpx.AsyncClient() as client:
-                response = await client.request(
-                    method, url, headers=self._headers, timeout=30.0, **kwargs
-                )
-
-            if response.status_code == 429:
-                retry_after = float(
-                    response.headers.get("Retry-After", 2 ** (attempt + 1))
-                )
-                await asyncio.sleep(retry_after)
-                continue
-
-            response.raise_for_status()
-            return response.json()
-
-        raise httpx.HTTPStatusError(
-            "Rate limit exceeded after retries",
-            request=response.request,
-            response=response,
-        )
+    # _request inherited from NotionAPIClient
