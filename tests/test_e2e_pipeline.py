@@ -4,20 +4,7 @@ import pytest
 from datetime import datetime, timedelta
 from unittest.mock import patch, MagicMock
 
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-
-from src.db.orm import Base, CompanyORM, ContactORM, OutreachORM
-
-
-@pytest.fixture
-def session():
-    engine = create_engine("sqlite:///:memory:")
-    Base.metadata.create_all(engine)
-    Session = sessionmaker(bind=engine)
-    sess = Session()
-    yield sess
-    sess.close()
+from src.db.orm import CompanyORM, ContactORM, OutreachORM
 
 
 def _seed_tier1_company(session, name="TestCo", fit_score=90.0, contact_name="Jane Doe"):

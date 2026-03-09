@@ -3,23 +3,11 @@
 from unittest.mock import patch
 
 import pytest
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 
-from src.db.orm import Base, CompanyORM
+from src.db.orm import CompanyORM
 from src.pipeline.orchestrator import Pipeline
 from src.validators.domain_scorer import DomainMatchScorer
 from src.validators.priority_report import PriorityReporter
-
-
-@pytest.fixture
-def session():
-    engine = create_engine("sqlite:///:memory:")
-    Base.metadata.create_all(engine)
-    Session = sessionmaker(bind=engine)
-    sess = Session()
-    yield sess
-    sess.close()
 
 
 def _make_company(

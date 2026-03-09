@@ -3,21 +3,9 @@
 from __future__ import annotations
 
 import pytest
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 
-from src.db.orm import Base, CompanyORM
+from src.db.orm import CompanyORM
 from src.validators.domain_scorer import DomainMatchScorer
-
-
-@pytest.fixture
-def session():
-    engine = create_engine("sqlite:///:memory:")
-    Base.metadata.create_all(engine)
-    Session = sessionmaker(bind=engine)
-    sess = Session()
-    yield sess
-    sess.close()
 
 
 @pytest.fixture
@@ -165,23 +153,23 @@ class TestDomainMatchScorer:
 
 class TestScoringEngineWithDomainMatch:
     @pytest.fixture
-    def engine(self):
+    def scoring_engine(self):
         from src.validators.scoring_engine import FitScoringEngine
         return FitScoringEngine()
 
-    def test_includes_bonus_when_semantic(self, engine, tier1_company):
+    def test_includes_bonus_when_semantic(self, scoring_engine, tier1_company):
         """score(include_semantic=True) includes domain_match_bonus."""
-        breakdown = engine.score(tier1_company, include_semantic=True)
+        breakdown = scoring_engine.score(tier1_company, include_semantic=True)
         assert breakdown.domain_match_bonus == 10.0
 
-    def test_excludes_bonus_when_not_semantic(self, engine, tier1_company):
+    def test_excludes_bonus_when_not_semantic(self, scoring_engine, tier1_company):
         """score(include_semantic=False) has domain_match_bonus=0."""
-        breakdown = engine.score(tier1_company, include_semantic=False)
+        breakdown = scoring_engine.score(tier1_company, include_semantic=False)
         assert breakdown.domain_match_bonus == 0.0
 
-    def test_batch_score_semantic_method(self, engine, tier1_company, empty_company):
+    def test_batch_score_semantic_method(self, scoring_engine, tier1_company, empty_company):
         """batch_score_semantic returns sorted results with domain match."""
-        results = engine.batch_score_semantic([empty_company, tier1_company])
+        results = scoring_engine.batch_score_semantic([empty_company, tier1_company])
         assert len(results) == 2
         # Kumo AI should rank higher
         assert results[0][0].name == "Kumo AI"

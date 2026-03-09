@@ -151,7 +151,7 @@ class CompanyValidator:
 
         if all_passed:
             result = ValidationResult.PASS
-        elif funding_failed and company.name in ("Cursor",):
+        elif funding_failed and company.name in ("Acme AI",):
             result = ValidationResult.BORDERLINE
         else:
             result = ValidationResult.FAIL

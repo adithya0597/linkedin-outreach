@@ -9,22 +9,10 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 import yaml
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 
-from src.db.orm import Base, ScanORM
+from src.db.orm import ScanORM
 from src.pipeline.auto_promotion import HISTORY_PATH, PortalAutoPromoter
 from src.pipeline.health_monitor import HealthMonitor
-
-
-@pytest.fixture()
-def session():
-    engine = create_engine("sqlite:///:memory:")
-    Base.metadata.create_all(engine)
-    Session = sessionmaker(bind=engine)
-    sess = Session()
-    yield sess
-    sess.close()
 
 
 @pytest.fixture()

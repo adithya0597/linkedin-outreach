@@ -7,21 +7,11 @@ from unittest.mock import patch
 
 import pytest
 import yaml
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 
-from src.db.orm import Base, ScanORM
+from src.db.orm import ScanORM
 from src.pipeline.auto_promotion import PortalAutoPromoter
 from src.pipeline.daily_orchestrator import DailyOrchestrator
 from src.pipeline.health_monitor import HealthMonitor
-
-
-@pytest.fixture
-def session():
-    """In-memory SQLite session for testing."""
-    engine = create_engine("sqlite:///:memory:")
-    Base.metadata.create_all(engine)
-    return sessionmaker(bind=engine)()
 
 
 @pytest.fixture

@@ -3,21 +3,9 @@
 from datetime import datetime, timedelta
 
 import pytest
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 
-from src.db.orm import Base, CompanyORM, ContactORM, OutreachORM
+from src.db.orm import CompanyORM, ContactORM, OutreachORM
 from src.outreach.send_queue import SendQueueManager, WEEKLY_SEND_LIMIT
-
-
-@pytest.fixture
-def session():
-    engine = create_engine("sqlite:///:memory:")
-    Base.metadata.create_all(engine)
-    Session = sessionmaker(bind=engine)
-    sess = Session()
-    yield sess
-    sess.close()
 
 
 def _make_company(session, name, fit_score=80.0, tier="Tier 1 - HIGH", is_disqualified=False, careers_url="", linkedin_url=""):

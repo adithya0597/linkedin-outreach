@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from datetime import datetime, timedelta
 
-from src.config.enums import H1BStatus, PortalTier, SourcePortal
+from src.config.enums import PortalTier, SourcePortal
 from src.models.job_posting import JobPosting
 from src.scrapers.rate_limiter import RateLimiter
 
@@ -27,12 +28,22 @@ class BaseScraper(ABC):
         return self._portal.tier
 
     @abstractmethod
-    async def search(self, keywords: list[str]) -> list[JobPosting]:
-        """Search portal for job postings matching keywords."""
+    async def search(self, keywords: list[str], days: int = 30) -> list[JobPosting]:
+        """Search portal for job postings matching keywords.
 
-    @abstractmethod
+        Args:
+            keywords: Search terms to query.
+            days: Only include postings from the last N days.
+        """
+
     async def get_posting_details(self, url: str) -> JobPosting:
-        """Fetch full details for a single job posting."""
+        """Fetch full details for a single job posting.
+
+        Default implementation returns a minimal JobPosting with only the URL
+        and source portal. Subclasses that can fetch richer details from the
+        posting page should override this method.
+        """
+        return JobPosting(url=url, source_portal=self._portal)
 
     def is_healthy(self) -> bool:
         """Return True if the scraper is operational."""
@@ -42,6 +53,12 @@ class BaseScraper(ABC):
         """Acquire a rate-limiter token for this portal (no-op if no limiter)."""
         if self._rate_limiter is not None:
             await self._rate_limiter.acquire(self.name)
+
+    @staticmethod
+    def _post_filter_by_date(postings: list[JobPosting], days: int) -> list[JobPosting]:
+        """Filter postings to only those discovered within the last N days."""
+        cutoff = datetime.now() - timedelta(days=days)
+        return [p for p in postings if p.discovered_date >= cutoff]
 
     def apply_h1b_filter(self, posting: JobPosting) -> bool:
         """Check whether a posting passes H1B filtering for this portal's tier.

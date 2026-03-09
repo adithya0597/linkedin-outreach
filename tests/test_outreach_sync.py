@@ -5,21 +5,9 @@ from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 
-from src.db.orm import Base, CompanyORM, OutreachORM
+from src.db.orm import CompanyORM, OutreachORM
 from src.integrations.outreach_sync import STAGE_MAPPING, OutreachNotionSync
-
-
-@pytest.fixture
-def session():
-    engine = create_engine("sqlite:///:memory:")
-    Base.metadata.create_all(engine)
-    Session = sessionmaker(bind=engine)
-    sess = Session()
-    yield sess
-    sess.close()
 
 
 def _make_company(session, name):

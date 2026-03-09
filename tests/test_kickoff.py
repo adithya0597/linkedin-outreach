@@ -3,21 +3,9 @@
 from unittest.mock import patch
 
 import pytest
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 
-from src.db.orm import Base, CompanyORM, ContactORM, OutreachORM
+from src.db.orm import CompanyORM, ContactORM, OutreachORM
 from src.outreach.kickoff import Tier1Kickoff
-
-
-@pytest.fixture
-def session():
-    engine = create_engine("sqlite:///:memory:")
-    Base.metadata.create_all(engine)
-    Session = sessionmaker(bind=engine)
-    sess = Session()
-    yield sess
-    sess.close()
 
 
 @pytest.fixture

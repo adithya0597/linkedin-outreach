@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+from datetime import datetime
 from urllib.parse import quote_plus
 
 import httpx
@@ -46,7 +48,7 @@ class StartupJobsScraper(HttpxScraper):
     def __init__(self, rate_limiter: RateLimiter | None = None) -> None:
         super().__init__(SourcePortal.STARTUP_JOBS, rate_limiter=rate_limiter)
 
-    async def search(self, keywords: list[str]) -> list[JobPosting]:
+    async def search(self, keywords: list[str], days: int = 30) -> list[JobPosting]:
         results: list[JobPosting] = []
         client = await self._get_client()
 
@@ -133,7 +135,7 @@ class TopStartupsScraper(HttpxScraper):
     def is_healthy(self) -> bool:
         return self._healthy
 
-    async def search(self, keywords: list[str]) -> list[JobPosting]:
+    async def search(self, keywords: list[str], days: int = 30) -> list[JobPosting]:
         results: list[JobPosting] = []
         client = await self._get_client()
 
@@ -240,7 +242,7 @@ class AIJobsScraper(HttpxScraper):
     def __init__(self, rate_limiter: RateLimiter | None = None) -> None:
         super().__init__(SourcePortal.AI_JOBS, rate_limiter=rate_limiter)
 
-    async def search(self, keywords: list[str]) -> list[JobPosting]:
+    async def search(self, keywords: list[str], days: int = 30) -> list[JobPosting]:
         results: list[JobPosting] = []
         client = await self._get_client()
 
@@ -327,58 +329,238 @@ class AIJobsScraper(HttpxScraper):
         )
 
 
-class JobBoardAIScraper(HttpxScraper):
-    """JobBoard AI scraper (Tier 2 -- H1B cross-check required).
+class HiringCafeHttpxScraper(HttpxScraper):
+    """Hiring Cafe scraper (Tier 3 -- startup portal).
 
-    DEMOTED: Zero listings found in prior scans.
+    Uses the Hiring Cafe JSON API directly — no HTML parsing needed.
+    API endpoint: GET https://hiring.cafe/api/search-jobs
     """
 
     def __init__(self, rate_limiter: RateLimiter | None = None) -> None:
-        super().__init__(SourcePortal.JOBBOARD_AI, rate_limiter=rate_limiter)
+        super().__init__(SourcePortal.HIRING_CAFE, rate_limiter=rate_limiter)
 
-    def is_healthy(self) -> bool:
-        return False
-
-    async def search(self, keywords: list[str]) -> list[JobPosting]:
-        logger.warning("JobBoardAI scraper demoted — zero listings in prior scans")
+    async def search(self, keywords: list[str], days: int = 30) -> list[JobPosting]:
         results: list[JobPosting] = []
         client = await self._get_client()
 
         for kw in keywords:
             await self._throttle()
-            url = f"https://jobboardai.io/jobs?search={quote_plus(kw)}"
+            url = (
+                f"https://hiring.cafe/api/search-jobs"
+                f"?searchQuery={quote_plus(kw)}"
+                f"&countryCode=US"
+                f"&limit=50"
+                f"&dateFetchedPastNDays={days}"
+            )
             try:
                 response = await client.get(url)
                 response.raise_for_status()
-            except httpx.HTTPError:
+            except httpx.HTTPError as e:
+                logger.warning(f"hiring.cafe API request failed for '{kw}': {e}")
                 continue
 
-            soup = BeautifulSoup(response.text, "html.parser")
-            for card in soup.select(".job-card, .job-listing"):
-                title_el = card.select_one(".job-title a, .job-title")
-                company_el = card.select_one(".company-name")
+            try:
+                data = response.json()
+            except Exception as e:
+                logger.warning(f"hiring.cafe returned non-JSON response for '{kw}': {e}")
+                continue
 
-                title = title_el.get_text(strip=True) if title_el else ""
+            for item in data.get("results", []):
+                job_info = item.get("job_information", {})
+                processed = item.get("v5_processed_job_data", {})
+                company_data = item.get("enriched_company_data", {})
+
+                title = job_info.get("title", "")
                 if not title:
                     continue
 
-                href = ""
-                link = card.select_one("a[href]")
-                if link and link.get("href"):
-                    href = link["href"]
-                    if not href.startswith("http"):
-                        href = f"https://jobboardai.io{href}"
+                company_name = processed.get("company_name", "") or company_data.get("name", "")
+                location = processed.get("formatted_workplace_location", "")
+                work_model = processed.get("workplace_type", "")
+
+                # Build salary string from yearly min/max compensation
+                salary_range = ""
+                sal_min = processed.get("yearly_min_compensation")
+                sal_max = processed.get("yearly_max_compensation")
+                if sal_min and sal_max:
+                    salary_range = f"${sal_min // 1000}k-${sal_max // 1000}k/yr"
+                elif sal_min:
+                    salary_range = f"${sal_min // 1000}k/yr"
+                elif sal_max:
+                    salary_range = f"${sal_max // 1000}k/yr"
+
+                # URL: prefer apply_url, fallback to requisition_id
+                apply_url = item.get("apply_url", "")
+                requisition_id = item.get("requisition_id", "")
+                if apply_url:
+                    job_url = apply_url
+                elif requisition_id:
+                    job_url = f"https://hiring.cafe/viewjob/{requisition_id}"
+                else:
+                    job_url = ""
+
+                # H1B visa info from API
+                h1b_mentioned = False
+                h1b_text = ""
+                visa_sponsorship = processed.get("visa_sponsorship")
+                if visa_sponsorship is not None:
+                    h1b_mentioned = True
+                    h1b_text = "yes" if visa_sponsorship else "no"
+
+                # Parse posted date
+                posted_date = None
+                pub_date_str = processed.get("estimated_publish_date", "")
+                if pub_date_str:
+                    try:
+                        posted_date = datetime.fromisoformat(pub_date_str.replace("Z", "+00:00"))
+                    except (ValueError, TypeError):
+                        pass
 
                 posting = JobPosting(
                     title=title,
-                    company_name=company_el.get_text(strip=True) if company_el else "",
-                    url=href,
-                    source_portal=SourcePortal.JOBBOARD_AI,
+                    company_name=company_name,
+                    location=location,
+                    url=job_url,
+                    salary_range=salary_range,
+                    salary_min=sal_min,
+                    salary_max=sal_max,
+                    work_model=work_model.lower() if work_model else "",
+                    source_portal=SourcePortal.HIRING_CAFE,
+                    h1b_mentioned=h1b_mentioned,
+                    h1b_text=h1b_text,
+                    posted_date=posted_date,
                 )
                 if self.apply_h1b_filter(posting):
                     results.append(posting)
 
+        logger.info(f"HiringCafeHttpxScraper found {len(results)} postings")
         return results
 
     async def get_posting_details(self, url: str) -> JobPosting:
-        return JobPosting(url=url, source_portal=SourcePortal.JOBBOARD_AI)
+        """Fetch details for a single posting via requisition ID lookup or return minimal."""
+        # Try to extract requisition_id from URL
+        match = re.search(r"/viewjob/([^/?]+)", url)
+        if match:
+            req_id = match.group(1)
+            await self._throttle()
+            client = await self._get_client()
+            try:
+                api_url = f"https://hiring.cafe/api/search-jobs?requisitionId={req_id}"
+                response = await client.get(api_url)
+                response.raise_for_status()
+                data = response.json()
+                items = data.get("results", [])
+                if items:
+                    item = items[0]
+                    job_info = item.get("job_information", {})
+                    processed = item.get("v5_processed_job_data", {})
+                    company_data = item.get("enriched_company_data", {})
+                    return JobPosting(
+                        title=job_info.get("title", ""),
+                        company_name=processed.get("company_name", "") or company_data.get("name", ""),
+                        location=processed.get("formatted_workplace_location", ""),
+                        url=url,
+                        source_portal=SourcePortal.HIRING_CAFE,
+                    )
+            except httpx.HTTPError:
+                pass
+        return JobPosting(url=url, source_portal=SourcePortal.HIRING_CAFE)
+
+
+class YCHttpxScraper(HttpxScraper):
+    """Work at a Startup (YC) scraper (Tier 3 -- startup portal).
+
+    Scrapes the server-rendered HTML at https://www.workatastartup.com/jobs
+    using httpx + BeautifulSoup. Tier 3 = no H1B filter.
+    """
+
+    def __init__(self, rate_limiter: RateLimiter | None = None) -> None:
+        super().__init__(SourcePortal.YC, rate_limiter=rate_limiter)
+
+    async def search(self, keywords: list[str], days: int = 30) -> list[JobPosting]:
+        results: list[JobPosting] = []
+        client = await self._get_client()
+
+        await self._throttle()
+        url = "https://www.workatastartup.com/jobs"
+        try:
+            response = await client.get(url)
+            response.raise_for_status()
+        except httpx.HTTPError as e:
+            logger.warning(f"workatastartup.com request failed: {e}")
+            return results
+
+        soup = BeautifulSoup(response.text, "html.parser")
+
+        # Find all company links (links to /companies/slug but NOT to /jobs/)
+        company_links = soup.select('a[href*="/companies/"]')
+
+        # Group elements by their parent container
+        # Each job card has: company link, job title link (ycombinator.com), details <p>, apply link
+        processed_job_urls: set[str] = set()
+
+        # Find all job title links (ycombinator.com/companies/.../jobs/...)
+        job_links = soup.select('a[href*="ycombinator.com/companies/"][href*="/jobs/"]')
+
+        for job_link in job_links:
+            job_title = job_link.get_text(strip=True)
+            job_url = job_link.get("href", "")
+            if not job_title or not job_url or job_url in processed_job_urls:
+                continue
+            processed_job_urls.add(job_url)
+
+            # Walk up to find the card container, then find sibling elements
+            card = job_link
+            for _ in range(5):
+                parent = card.parent
+                if parent is None:
+                    break
+                card = parent
+                # Check if this container has a company link
+                co_link = card.find("a", href=re.compile(r"/companies/[^/]+$"))
+                if co_link:
+                    break
+
+            # Parse company name from the company link text
+            company_name = ""
+            co_link = card.find("a", href=re.compile(r"/companies/[^/]+$"))
+            if co_link:
+                co_text = co_link.get_text(strip=True)
+                # Strip batch tag like "(W21)" and description after bullet
+                co_text = re.sub(r"\((?:W|S|IK)\d{2}\)", "", co_text)
+                if "\u2022" in co_text:
+                    co_text = co_text.split("\u2022")[0]
+                company_name = co_text.strip()
+
+            # Parse location from <p> tag near the job link
+            location = ""
+            details_p = job_link.find_next("p")
+            if details_p:
+                details_text = details_p.get_text(strip=True)
+                # Strip employment type prefix (fulltime, intern, contract, parttime)
+                details_text = re.sub(
+                    r"^(fulltime|full-time|part-time|parttime|intern|contract)\s*",
+                    "",
+                    details_text,
+                    flags=re.IGNORECASE,
+                )
+                # Strip trailing role type (e.g., "Full stack", "Backend", "Frontend")
+                location = details_text.strip()
+
+            posting = JobPosting(
+                title=job_title,
+                company_name=company_name,
+                location=location,
+                url=job_url,
+                source_portal=SourcePortal.YC,
+                discovered_date=datetime.now(),
+            )
+            if self.apply_h1b_filter(posting):
+                results.append(posting)
+
+        # YC doesn't have keyword search — post-filter by date
+        results = self._post_filter_by_date(results, days)
+
+        logger.info(f"YCHttpxScraper found {len(results)} postings")
+        return results
+

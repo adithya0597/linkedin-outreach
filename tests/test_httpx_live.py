@@ -9,12 +9,6 @@ import pytest
 
 from src.config.enums import PortalTier, SourcePortal
 from src.models.job_posting import JobPosting
-from src.scrapers.rate_limiter import RateLimiter
-
-
-@pytest.fixture
-def fast_rate_limiter():
-    return RateLimiter(default_tokens_per_second=1000.0)
 
 
 # ---------------------------------------------------------------------------
@@ -601,60 +595,6 @@ class TestAIJobsScraper:
 # ============================================================
 
 
-class TestJobBoardAIScraper:
-
-    def test_is_healthy_returns_false(self):
-        from src.scrapers.httpx_scraper import JobBoardAIScraper
-
-        scraper = JobBoardAIScraper()
-        assert scraper.is_healthy() is False
-
-    @pytest.mark.asyncio
-    async def test_tier_is_2(self):
-        from src.scrapers.httpx_scraper import JobBoardAIScraper
-
-        scraper = JobBoardAIScraper()
-        assert scraper.tier == PortalTier.TIER_2
-
-    @pytest.mark.asyncio
-    async def test_search_returns_empty_for_js_rendered_page(self, fast_rate_limiter):
-        from src.scrapers.httpx_scraper import JobBoardAIScraper
-
-        mock_client = AsyncMock()
-        mock_client.get = AsyncMock(return_value=_mock_response(EMPTY_HTML))
-
-        scraper = JobBoardAIScraper(rate_limiter=fast_rate_limiter)
-        with patch.object(scraper, "_get_client", return_value=mock_client):
-            results = await scraper.search(["AI Engineer"])
-
-        assert results == []
-
-    @pytest.mark.asyncio
-    async def test_search_http_error_returns_empty(self, fast_rate_limiter):
-        from src.scrapers.httpx_scraper import JobBoardAIScraper
-
-        mock_client = AsyncMock()
-        mock_client.get = AsyncMock(side_effect=httpx.ConnectError("timeout"))
-
-        scraper = JobBoardAIScraper(rate_limiter=fast_rate_limiter)
-        with patch.object(scraper, "_get_client", return_value=mock_client):
-            results = await scraper.search(["AI Engineer"])
-
-        assert results == []
-
-    @pytest.mark.asyncio
-    async def test_get_posting_details_returns_minimal(self, fast_rate_limiter):
-        from src.scrapers.httpx_scraper import JobBoardAIScraper
-
-        scraper = JobBoardAIScraper(rate_limiter=fast_rate_limiter)
-        posting = await scraper.get_posting_details("https://jobboardai.io/job/1")
-
-        assert posting.url == "https://jobboardai.io/job/1"
-        assert posting.source_portal == SourcePortal.JOBBOARD_AI
-        assert posting.title == ""
-        assert posting.company_name == ""
-
-
 # ============================================================
 # Cross-scraper / integration tests
 # ============================================================
@@ -687,7 +627,6 @@ class TestHttpxScraperBase:
     async def test_all_scrapers_have_correct_portal(self):
         from src.scrapers.httpx_scraper import (
             AIJobsScraper,
-            JobBoardAIScraper,
             StartupJobsScraper,
             TopStartupsScraper,
         )
@@ -695,4 +634,3 @@ class TestHttpxScraperBase:
         assert StartupJobsScraper().portal == SourcePortal.STARTUP_JOBS
         assert TopStartupsScraper().portal == SourcePortal.TOP_STARTUPS
         assert AIJobsScraper().portal == SourcePortal.AI_JOBS
-        assert JobBoardAIScraper().portal == SourcePortal.JOBBOARD_AI

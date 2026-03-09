@@ -4,21 +4,9 @@ from __future__ import annotations
 from datetime import datetime
 
 import pytest
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 
-from src.db.orm import Base, CompanyORM, ContactORM
+from src.db.orm import CompanyORM, ContactORM
 from src.integrations.linkedin_research import ContactResearcher, TITLE_PRIORITY, SEARCH_TITLES
-
-
-@pytest.fixture()
-def session():
-    engine = create_engine("sqlite:///:memory:")
-    Base.metadata.create_all(engine)
-    Session = sessionmaker(bind=engine)
-    sess = Session()
-    yield sess
-    sess.close()
 
 
 @pytest.fixture()

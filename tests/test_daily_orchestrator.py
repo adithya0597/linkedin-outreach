@@ -5,19 +5,9 @@ from __future__ import annotations
 from unittest.mock import MagicMock, patch
 
 import pytest
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 
-from src.db.orm import Base, CompanyORM, OutreachORM
+from src.db.orm import CompanyORM, OutreachORM
 from src.pipeline.daily_orchestrator import DailyOrchestrator
-
-
-@pytest.fixture
-def session():
-    """In-memory SQLite session for testing."""
-    engine = create_engine("sqlite:///:memory:")
-    Base.metadata.create_all(engine)
-    return sessionmaker(bind=engine)()
 
 
 @pytest.fixture

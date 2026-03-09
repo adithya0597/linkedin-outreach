@@ -86,15 +86,15 @@ def sample_failing_company() -> CompanyORM:
 
 @pytest.fixture
 def sample_borderline_company() -> CompanyORM:
-    """Cursor — borderline (Series D but strong fit)."""
+    """Acme AI — borderline (Series D but strong fit)."""
     return CompanyORM(
-        name="Cursor",
-        description="AI-powered code editor that automates programming tasks",
+        name="Acme AI",
+        description="AI-powered developer tools that automate programming tasks",
         hq_location="San Francisco, CA",
         employees=200,
         employees_range="100-300",
         funding_stage="Series D",
-        funding_amount="Series D — $2.3B",
+        funding_amount="Series D — $500M",
         is_ai_native=True,
         tier="Tier 2 - STRONG",
         source_portal="Manual",

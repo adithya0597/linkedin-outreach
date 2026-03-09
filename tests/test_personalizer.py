@@ -1,4 +1,5 @@
-"""Tests for outreach personalizer — domain matching, context enrichment, variant generation."""
+"""Tests for outreach personalizer — domain matching, context enrichment, variant generation,
+weighted scoring, config-driven overrides, and multi-template variants."""
 
 from unittest.mock import MagicMock, patch
 
@@ -10,6 +11,7 @@ from src.outreach.personalizer import (
     TIER1_OVERRIDES,
     OutreachPersonalizer,
     _DOMAIN_KEYWORDS,
+    _DOMAIN_WEIGHTS,
 )
 
 
@@ -261,3 +263,96 @@ class TestExperienceMapIntegrity:
             assert domain in EXPERIENCE_MAP, (
                 f"_DOMAIN_KEYWORDS has domain '{domain}' not in EXPERIENCE_MAP"
             )
+
+
+# ---------------------------------------------------------------------------
+# V2 Tests: weighted scoring, config-driven overrides, multi-template variants
+# ---------------------------------------------------------------------------
+
+
+class TestWeightedScoring:
+    def test_prefers_high_weight_keywords(self):
+        """A company mentioning 'knowledge graph' (weight 3.0) should match graph_rag
+        over a company mentioning 'graph' (weight 2.0) alone."""
+        p = OutreachPersonalizer()
+        company = MagicMock(spec=CompanyORM)
+        company.name = "TestCo"
+        company.description = "We build knowledge graph systems"
+        company.differentiators = ""
+        company.role = ""
+        domain = p._match_domain(company)
+        assert domain == "graph_rag"
+
+    def test_agentic_scoring(self):
+        """Company with 'agentic' and 'multi-agent' should match agentic_ai."""
+        p = OutreachPersonalizer()
+        company = MagicMock(spec=CompanyORM)
+        company.name = "AgentCo"
+        company.description = "agentic multi-agent orchestration platform"
+        company.differentiators = ""
+        company.role = ""
+        domain = p._match_domain(company)
+        assert domain == "agentic_ai"
+
+
+class TestConfigDrivenOverrides:
+    def test_tier1_overrides_from_yaml(self):
+        """TIER1_OVERRIDES should be loaded and contain known companies."""
+        assert "Kumo AI" in TIER1_OVERRIDES
+        assert TIER1_OVERRIDES["Kumo AI"] == "graph_rag"
+        assert "LangChain" in TIER1_OVERRIDES
+        assert TIER1_OVERRIDES["LangChain"] == "llm_framework"
+
+    def test_override_takes_precedence_over_scoring(self):
+        """Tier1 override should win even if keyword scoring points elsewhere."""
+        p = OutreachPersonalizer()
+        company = MagicMock(spec=CompanyORM)
+        company.name = "Hippocratic AI"  # Override -> healthcare
+        company.description = "agentic AI for clinical decision-making"
+        company.differentiators = "agent"
+        company.role = "AI Engineer"
+        domain = p._match_domain(company)
+        assert domain == "healthcare"
+
+
+class TestDomainWeights:
+    def test_has_all_five_domains(self):
+        """_DOMAIN_WEIGHTS should have entries for all 5 domains."""
+        expected_domains = {"graph_rag", "healthcare", "llm_framework", "ml_infrastructure", "agentic_ai"}
+        assert set(_DOMAIN_WEIGHTS.keys()) == expected_domains
+        for domain, weights in _DOMAIN_WEIGHTS.items():
+            assert len(weights) >= 5, f"{domain} should have at least 5 weighted keywords"
+
+    def test_domain_keywords_backward_compat(self):
+        """_DOMAIN_KEYWORDS should still be importable and contain all 5 domains."""
+        expected_domains = {"graph_rag", "healthcare", "llm_framework", "ml_infrastructure", "agentic_ai"}
+        assert set(_DOMAIN_KEYWORDS.keys()) == expected_domains
+        for domain, keywords in _DOMAIN_KEYWORDS.items():
+            assert isinstance(keywords, list)
+            assert len(keywords) >= 5
+
+
+class TestGenerateVariantsV2:
+    def test_returns_list_with_full_context(self):
+        """generate_variants returns a list of tuples (text, is_valid, count)."""
+        p = OutreachPersonalizer()
+        context = {
+            "name": "Test",
+            "company": "TestCo",
+            "role": "AI Engineer",
+            "topic": "AI",
+            "relevant_experience": "building RAG systems",
+            "value_prop": "production AI experience",
+            "metric": "26000 orders",
+            "domain": "ML Infrastructure",
+            "mutual_interest": "AI",
+            "specific_insight": "what TestCo does",
+            "your_background": "AI engineer",
+            "connection_point": "AI engineering",
+            "follow_up_context": "AI roles",
+        }
+        variants = p.generate_variants("connection_request_a.j2", context, n=2)
+        assert isinstance(variants, list)
+        assert len(variants) >= 1
+        for v in variants:
+            assert len(v) == 3  # (text, is_valid, char_count)

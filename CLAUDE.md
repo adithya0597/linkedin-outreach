@@ -30,18 +30,16 @@ Bala Adithya Malaraju, AI Engineer at Infinite Computer Solutions, Irving TX.
 ### Targets & Tracking
 - `Startup_Target_List.md` — 100 targets across 5 tiers + portal scan status
 - `Company_Tracker.xlsx` — Spreadsheet tracker with COUNTIF formulas
-- `Portal_Analytics.md` — Per-portal performance metrics for scan frequency decisions
+- `archive/Portal_Analytics.md` — Per-portal performance metrics for scan frequency decisions (archived)
 
 ### Templates & Outreach
 - `Message_Templates.md` — 10 outreach templates (0-9) with character counts
 - `Tier1_Outreach_Master.md` — 12 Tier 1 companies with full outreach packages + clickable LinkedIn links
-- `Hippocratic_AI_3_Outreach_Messages.md` — Ready to send
-- `Pair_Team_Outreach.md` — Ready to send (includes Fredy C.)
-- `Startup_Recruiter_Connection_Requests.md` — 4 recruiter messages
+- `archive/Startup_Recruiter_Connection_Requests.md` — 4 recruiter messages (archived)
 
 ### Scan Logs
-- `Daily_Scan_2026-03-05_Rescan.md` — Latest scan results
-- `Today_Actions_2026-03-05.md` — Daily action items
+- `archive/Daily_Scan_2026-03-05_Rescan.md` — Scan results from 2026-03-05 (archived)
+- `archive/Today_Actions_2026-03-05.md` — Action items from 2026-03-05 (archived)
 
 ### Config (Claude Code specific)
 - `.mcp.json` — MCP server configuration (Notion, Gmail, Calendar)
@@ -58,14 +56,22 @@ Use these as slash commands in Claude Code:
 
 ## OUTREACH STATUS
 
-### Ready to Send (not yet sent)
-1. **Hippocratic AI** → Sakshi Palta (Recruiter, 2nd degree) — `Hippocratic_AI_3_Outreach_Messages.md`
-2. **Pair Team** → Aaron Tyler (SVP Eng, 3rd+) — `Pair_Team_Outreach.md`
-3. **4 Startup Recruiters** — `Startup_Recruiter_Connection_Requests.md`
-4. **Fredy C.** (Dallas AI recruiter, 2nd degree) — in `Pair_Team_Outreach.md`
-5. **12 Tier 1 Companies** — Full packages in `Tier1_Outreach_Master.md`
+### Ready to Send (6 verified companies)
+1. **Snorkel AI** → Curtis Tuttle (Lead Recruiter, 2nd degree) — Connection request
+2. **LlamaIndex** → Simon Suo (CTO, 2nd-3rd degree) — Connection request/InMail
+3. **Norm AI** → Tessa Corbishley (TA) — Connection request
+4. **LangChain** → Allison Ewing (Sr Recruiter, 3rd+) — InMail
+5. **Cinder** → Glen Wise (CEO, 3rd+) — InMail
+6. **Spherecast** → Leon Hergert (Founder, 3rd+) — Connection request
+> All messages in `Tier1_Outreach_Master.md` (sections 6-12)
 
-### Removed
+### Removed (2026-03-07 validation)
+- ~~Cursor~~ — Over-stage ($29.3B, Series D)
+- ~~Hippocratic AI~~ — Over-stage ($3.5B, Series C) + contact unverified (Sakshi Palta is at T-Mobile)
+- ~~Augment Code~~ — Over-stage ($977M, Series B) + no verified contact
+- ~~Pair Team~~ — Not AI product company (healthcare services)
+- ~~EvenUp~~ — Over-stage ($2B+, Series E)
+- ~~Kumo AI~~ — H1B Unknown + profile mismatch (needs GNN researcher, not AI engineer)
 - ~~Hypercubic~~ — Does not sponsor H1B
 - ~~Irina Adamchic~~ — Not in United States
 
@@ -74,35 +80,36 @@ Use these as slash commands in Claude Code:
 |------|--------|--------|----------|
 | — | — | No messages sent yet | — |
 
-## TIER 1 COMPANIES (12 — Full Outreach Ready)
+## TIER 1 COMPANIES (6 — Verified & Ready to Contact)
 
-| # | Company | Contact | Fit | H1B |
-|---|---------|---------|-----|-----|
-| 1 | Kumo AI | Hema Raghavan (Head Eng) | 91 | Unknown |
-| 2 | LlamaIndex | Simon Suo (CTO) | — | Confirmed |
-| 3 | Cursor | Aman Sanger (Co-Founder) | 90 | Confirmed |
-| 4 | Hippocratic AI | Sakshi Palta (Recruiter) | 90 | Confirmed |
-| 5 | LangChain | Allison Ewing (Sr Recruiter) | 85 | Likely |
-| 6 | Norm AI | Tessa Corbishley (TA) | — | Confirmed |
-| 7 | Spherecast (YC) | Leon Hergert (Founder) | — | Tier 3 |
-| 8 | Cinder | Glen Wise (CEO) | — | Confirmed |
-| 9 | Augment Code | TBD | 90 | Confirmed |
-| 10 | Pair Team | Brittany Rowles (Recruiter) | 88 | Confirmed |
-| 11 | Snorkel AI | Curtis Tuttle (Lead Recruiter) | 87 | Confirmed |
-| 12 | EvenUp | Erica Sahli (Talent Lead) | — | Confirmed |
+| # | Company | Contact | Degree | H1B | Method | ATS |
+|---|---------|---------|--------|-----|--------|-----|
+| 1 | LlamaIndex | Simon Suo (CTO) | 2nd-3rd | Confirmed | Connection/InMail | Ashby |
+| 2 | LangChain | Allison Ewing (Sr Recruiter) | 3rd+ | Likely | InMail | Ashby |
+| 3 | Norm AI | Tessa Corbishley (TA) | TBD | Confirmed | Connection | Ashby |
+| 4 | Snorkel AI | Curtis Tuttle (Lead Recruiter) | 2nd | Confirmed | Connection | Greenhouse |
+| 5 | Cinder | Glen Wise (CEO) | 3rd+ | Confirmed | InMail | Ashby |
+| 6 | Spherecast (YC) | Leon Hergert (Founder) | 3rd+ | Tier 3 | Connection | None |
 
-> **Note on Kumo AI:** Fit score is high due to graph ML domain match, but Adithya's profile is AI *engineering* (production systems, pipelines, infrastructure) — NOT deep ML research. Kumo may need a GNN researcher, not an AI engineer. Validate the actual JD before prioritizing.
+> **6 replacement Tier 1 companies needed** — mining Notion CRM + ATS discovery scans in progress.
 
-## JOB SOURCES (13 total — 12 portals + LinkedIn)
+## JOB SOURCES (18 scrapers across 4 tiers)
+
+### Four-Tier Scraper Architecture
+**Tier S — Zero Risk (APIs):** Ashby, Greenhouse, Lever, Hiring Cafe
+**Tier A — Low Risk (httpx):** Wellfound (`__NEXT_DATA__`), YC (Algolia API), WTTJ (Algolia API), startup.jobs, Top Startups, AI Jobs
+**Tier B — MCP Playwright:** LinkedIn (primary), LinkedIn Alerts (Gmail, supplementary), Built In (probe), JobBoard AI (probe)
+**Tier C — Patchright Stealth:** Jobright, TrueUp
+**Tier D — New Sources:** JobSpy (aggregator), HN Hiring
 
 ### Three-Tier H1B Filtering System
 See `.claude/rules/h1b-filtering.md` for full details.
 
-**Tier 3 — Startup Portals (NO H1B filter):** startup.jobs, workatastartup.com (YC), topstartups.io, hiring.cafe, wellfound.com
+**Tier 3 — Startup Portals (NO H1B filter):** startup.jobs, workatastartup.com (YC), topstartups.io, hiring.cafe, wellfound.com, HN Hiring
 
-**Tier 2 — General Portals (H1B cross-check required):** jobboardai.io, aijobs.ai, welcometothejungle, builtin.com, trueup.io, jobright.ai, froghire.com
+**Tier 2 — General Portals (H1B cross-check required):** ashby, greenhouse, lever, wttj, aijobs.ai, builtin.com, jobboardai.io, trueup.io, jobright.ai, jobspy
 
-**Tier 1 — LinkedIn (H1B cross-check required):** LinkedIn — 13th source
+**Tier 1 — LinkedIn (H1B cross-check required):** LinkedIn (MCP Playwright), LinkedIn Alerts (Gmail)
 
 ### H1B Verification Source Priority
 1. **Frog Hire** (froghire.ai) — PRIMARY → https://www.froghire.ai/company
@@ -116,6 +123,7 @@ See `.claude/rules/h1b-filtering.md` for full details.
 - **Frequency review:** Weekly via Portal_Analytics.md scoring (0–12 rubric)
 
 **Last scan:** 2026-03-05 PM — ALL 13 SOURCES RESCANNED. 100 total entries.
+**Scraper migration:** 2026-03-09 — 18-scraper 4-tier architecture deployed (see session log).
 
 ## LINKEDIN PREMIUM CAREER (ACTIVE — renews Mar 26, 2026)
 
@@ -174,7 +182,7 @@ Quick reference:
 ## SESSION LOG
 | Date | What Was Done |
 |------|---------------|
-| 2026-03-04 | Sessions 1-4: Built swarm v2.0, 11 portals, 26 targets, outreach drafts, Notion CRM, 5 skills, H1B filtering, Frog Hire verification (6/7 confirmed) |
+| 2026-03-04 | Sessions 1-4: Initial setup, swarm v2.0, CRM, skills |
 | 2026-03-05 | Sessions 5-10: Three-tier H1B encoding, PROJECT_GUIDE, Portal_Analytics, dual-scan schedule, FULL 13-source scan (100 entries), portal rankings (Jobright #1, Hiring Cafe #2) |
 | 2026-03-05 | Sessions 11-14: LinkedIn deep scan (+10 companies), Premium integration (300 chars, InMail, 8 features), 2026 best practices audit (9.2/10), full Premium catalog (P1-P8) |
 | 2026-03-05 | Session 15: Full 13-source rescan, 18 new companies, H1B cross-checks, total 100 entries |
@@ -183,3 +191,5 @@ Quick reference:
 | 2026-03-05 | Session 18: Added LinkedIn profile URLs, company pages, careers links, and activity feed links to every step of Tier1_Outreach_Master.md. Created Claude Code migration package (setup script, updated CLAUDE.md, MCP config) |
 | 2026-03-05 | Session 19: P3 maintenance — built portal scorer, health monitor, stale posting archival, quality gates. 396 tests, 82% coverage, 14 CLI commands, 12 scrapers |
 | 2026-03-06 | Session 20: P1+P2 feature build via 5-agent swarm. H1B seed enrichment (h1b_lookup.py, 11 Tier 1 entries updated), company auto-creation from postings (persistence.py 3-tuple return), LinkedIn contact research module, outreach personalizer (5 domains, Tier 1 overrides), Notion sync +4 fields + dry_run, dashboard portal scores + health widgets, 23 files archived. 5 new CLI commands (enrich-h1b, contacts, record-contact, rank-contacts, viewers). 516 tests, 80% coverage |
+| 2026-03-07 | Session 26: Validated Tier 1 → cut from 12 to 6 (Cursor/Hippocratic/Augment/PairTeam/EvenUp/Kumo dropped). Notion CRM reclassified 5 companies (Stage=Rejected). Building ATS scrapers (Ashby+Greenhouse). Preparing outreach execution for 6 verified companies. |
+| 2026-03-09 | Session 27: Intelligence-Driven Scraper Migration — 14-agent swarm across 5 waves. Replaced 7 broken scrapers with 4-tier architecture: Tier S (ATS APIs: Ashby, Greenhouse, Lever, Hiring Cafe), Tier A (httpx: Wellfound __NEXT_DATA__, YC/WTTJ Algolia APIs, startup.jobs, Top Startups, AI Jobs), Tier B (MCP Playwright: LinkedIn primary + Gmail alerts supplementary, Built In/JobBoard AI probes), Tier C (Patchright stealth: Jobright, TrueUp), Tier D (JobSpy aggregator, HN Hiring). 18 total scrapers, 146 new tests pass, 22 new files created. |

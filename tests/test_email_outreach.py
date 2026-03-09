@@ -5,20 +5,9 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 
 import pytest
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 
-from src.db.orm import Base, CompanyORM, ContactORM, OutreachORM
+from src.db.orm import CompanyORM, ContactORM, OutreachORM
 from src.integrations.email_outreach import STALE_THRESHOLD_DAYS, EmailOutreach
-
-
-@pytest.fixture()
-def session():
-    engine = create_engine("sqlite:///:memory:")
-    Base.metadata.create_all(engine)
-    sess = sessionmaker(bind=engine)()
-    yield sess
-    sess.close()
 
 
 @pytest.fixture()

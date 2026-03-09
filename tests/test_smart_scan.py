@@ -7,10 +7,8 @@ from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 
-from src.db.orm import Base, ScanORM
+from src.db.orm import ScanORM
 from src.pipeline.smart_scan import SmartScanOrchestrator
 from src.validators.portal_scorer import PortalScore
 
@@ -18,16 +16,6 @@ from src.validators.portal_scorer import PortalScore
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
-
-
-@pytest.fixture
-def session():
-    engine = create_engine("sqlite:///:memory:")
-    Base.metadata.create_all(engine)
-    Session = sessionmaker(bind=engine)
-    sess = Session()
-    yield sess
-    sess.close()
 
 
 @pytest.fixture

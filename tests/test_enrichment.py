@@ -1,21 +1,9 @@
 """Tests for company data enrichment pipeline."""
 
 import pytest
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 
-from src.db.orm import Base, CompanyORM
+from src.db.orm import CompanyORM
 from src.pipeline.enrichment import COMPLETENESS_FIELDS, CompanyEnricher
-
-
-@pytest.fixture
-def session():
-    engine = create_engine("sqlite:///:memory:")
-    Base.metadata.create_all(engine)
-    Session = sessionmaker(bind=engine)
-    sess = Session()
-    yield sess
-    sess.close()
 
 
 def _make_company(session, name, description="", hq_location="", employees=None,

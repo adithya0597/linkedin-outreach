@@ -24,8 +24,8 @@ class TestCompanyValidator:
         funding_check = [c for c in report.checks if "Seed" in c.name][0]
         assert not funding_check.passed
 
-    def test_cursor_borderline(self, sample_borderline_company):
-        """Cursor should be BORDERLINE — Series D but named exception."""
+    def test_borderline_company(self, sample_borderline_company):
+        """Acme AI should be BORDERLINE — Series D but named exception."""
         report = self.validator.validate(sample_borderline_company)
         assert report.result == ValidationResult.BORDERLINE
 

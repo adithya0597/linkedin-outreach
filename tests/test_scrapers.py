@@ -82,10 +82,10 @@ def test_deduplicator_empty_lists():
 
 
 def test_registry_register_and_get():
-    from src.scrapers.playwright_scraper import LinkedInScraper
+    from src.scrapers.mcp_scraper import MCPPlaywrightScraper
 
     registry = PortalRegistry()
-    scraper = LinkedInScraper()
+    scraper = MCPPlaywrightScraper(SourcePortal.LINKEDIN, skill_name="scan-linkedin")
     registry.register("linkedin", scraper)
 
     retrieved = registry.get_scraper("linkedin")
@@ -102,38 +102,36 @@ def test_registry_get_missing_raises():
 def test_registry_get_all():
     registry = build_default_registry()
     all_scrapers = registry.get_all_scrapers()
-    assert len(all_scrapers) == 12
+    assert len(all_scrapers) == 18  # 4-tier architecture: S(4) + A(6) + B(4) + C(2) + D(2)
 
 
 def test_registry_get_by_tier():
     registry = build_default_registry()
 
     tier_1 = registry.get_scrapers_by_tier(1)
-    assert len(tier_1) == 1
-    assert tier_1[0].portal == SourcePortal.LINKEDIN
+    assert len(tier_1) == 2  # linkedin (MCP), linkedin_alerts (Gmail)
 
     tier_3 = registry.get_scrapers_by_tier(3)
-    assert len(tier_3) == 5  # wellfound, yc, startup_jobs, hiring_cafe, top_startups
+    assert len(tier_3) == 6  # wellfound, yc, startup_jobs, hiring_cafe, top_startups, hn_hiring
 
     tier_2 = registry.get_scrapers_by_tier(2)
-    assert len(tier_2) == 6  # jobright, ai_jobs, jobboard_ai, builtin, wttj, trueup
+    assert len(tier_2) == 10  # ashby, greenhouse, lever, wttj, ai_jobs, builtin, jobboard_ai, jobright, trueup, jobspy
 
 
 def test_registry_correct_scraper_type():
     registry = build_default_registry()
 
-    from src.scrapers.apify_scraper import ApifyScraper
     from src.scrapers.httpx_scraper import HttpxScraper
-    from src.scrapers.playwright_scraper import PlaywrightScraper
+    from src.scrapers.mcp_scraper import MCPPlaywrightScraper
 
     linkedin = registry.get_scraper("linkedin")
-    assert isinstance(linkedin, PlaywrightScraper)
+    assert isinstance(linkedin, MCPPlaywrightScraper)
 
     startup_jobs = registry.get_scraper("startup_jobs")
     assert isinstance(startup_jobs, HttpxScraper)
 
     yc = registry.get_scraper("yc")
-    assert isinstance(yc, ApifyScraper)
+    assert isinstance(yc, HttpxScraper)  # AlgoliaBaseScraper extends HttpxScraper
 
 
 # --- H1B filter tests ---
@@ -141,9 +139,9 @@ def test_registry_correct_scraper_type():
 
 def test_h1b_filter_tier3_auto_passes():
     """Tier 3 (startup portals) should auto-pass all postings."""
-    from src.scrapers.playwright_scraper import WellfoundScraper
+    from src.scrapers.wellfound_nextdata import WellfoundNextDataScraper
 
-    scraper = WellfoundScraper()
+    scraper = WellfoundNextDataScraper()
     assert scraper.tier == PortalTier.TIER_3
 
     posting = JobPosting(
@@ -178,9 +176,9 @@ def test_h1b_filter_tier2_passes_unknown():
 
 def test_h1b_filter_tier1_rejects_explicit_no():
     """Tier 1 (LinkedIn) should also reject explicit no."""
-    from src.scrapers.playwright_scraper import LinkedInScraper
+    from src.scrapers.mcp_scraper import MCPPlaywrightScraper
 
-    scraper = LinkedInScraper()
+    scraper = MCPPlaywrightScraper(SourcePortal.LINKEDIN, skill_name="scan-linkedin")
     assert scraper.tier == PortalTier.TIER_1
 
     posting = JobPosting(company_name="BigCo", h1b_text="Explicit No")
@@ -190,16 +188,17 @@ def test_h1b_filter_tier1_rejects_explicit_no():
 # --- Scraper health check ---
 
 
-def test_healthy_scrapers_exclude_demoted():
-    """Healthy scrapers should not include demoted/down portals (BuiltIn, WTTJ)."""
+def test_healthy_scrapers_exclude_unhealthy():
+    """Healthy scrapers should not include unhealthy portals (e.g. uninstalled deps)."""
     registry = build_default_registry()
     healthy = registry.get_healthy_scrapers()
     healthy_names = {s.name for s in healthy}
 
-    # BuiltIn, WTTJ, and JobBoardAI are demoted/down
-    assert "Built In" not in healthy_names
-    assert "Welcome to the Jungle" not in healthy_names
-    assert "JobBoard AI" not in healthy_names
-
-    # All other scrapers should be healthy
-    assert len(healthy) == 9  # 12 total minus 3 demoted
+    # After 4-tier migration, most scrapers are healthy (MCP, Patchright, Algolia replacements)
+    # Only JobSpy may be unhealthy if python-jobspy is not installed
+    assert "Ashby" in healthy_names
+    assert "Greenhouse" in healthy_names
+    assert "Wellfound" in healthy_names
+    assert "AI Jobs" in healthy_names
+    # Total healthy count: 17 (all except JobSpy if not installed) or 18 if installed
+    assert len(healthy) >= 17
