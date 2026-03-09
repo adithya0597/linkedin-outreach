@@ -192,6 +192,24 @@ class Pipeline:
             scan_type="full",
         )
 
+    def _notion_sync(self) -> dict | None:
+        """Sync local DB with Notion after pipeline run."""
+        import asyncio
+        import os
+
+        from src.integrations.notion_bidirectional import ConflictStrategy, NotionBidirectionalSync
+
+        api_key = os.environ.get("NOTION_API_KEY", "")
+        db_id = os.environ.get("NOTION_DB_ID", "") or os.environ.get(
+            "NOTION_DATABASE_ID", ""
+        )
+        if not api_key or not db_id:
+            return None
+        syncer = NotionBidirectionalSync(api_key, db_id, self.session)
+        return asyncio.run(
+            syncer.full_sync(strategy=ConflictStrategy.NEWEST_WINS)
+        )
+
     def run(
         self,
         validate: bool = True,
@@ -202,7 +220,7 @@ class Pipeline:
         smart: bool = False,
         scan_portals: list[str] | None = None,
     ) -> dict:
-        """Run the full pipeline: scan → validate → h1b → score."""
+        """Run the full pipeline: scan → validate → h1b → score → sync."""
         import asyncio
 
         results = {}
@@ -221,6 +239,12 @@ class Pipeline:
 
         if score:
             results["scoring"] = self.score_all(include_semantic=include_semantic)
+
+        try:
+            results["notion_sync"] = self._notion_sync()
+        except Exception as e:
+            logger.error(f"Notion sync failed: {e}")
+            results["notion_sync"] = {"error": str(e)}
 
         logger.info("Pipeline run complete")
         return results

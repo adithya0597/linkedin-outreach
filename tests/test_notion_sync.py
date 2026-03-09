@@ -96,12 +96,11 @@ class TestNotionSchemas:
         assert ms[1]["name"] == "Neo4j"
         assert ms[2]["name"] == "Vector DB"
 
-    def test_schema_mapping_date_field(self):
-        """DateTime fields convert to Notion date format."""
-        dt = datetime(2026, 3, 5, 14, 30, 0)
-        company = CompanyORM(name="TestCo", created_at=dt)
+    def test_schema_mapping_checkbox_field(self):
+        """Boolean fields convert to Notion checkbox."""
+        company = CompanyORM(name="TestCo", is_ai_native=True)
         props = NotionSchemas.orm_to_notion(company)
-        assert props["Applied Date"]["date"]["start"] == "2026-03-05"
+        assert props["AI Native"]["checkbox"] is True
 
     def test_schema_mapping_empty_fields_omitted(self):
         """Empty/None fields are not included in the output."""
@@ -185,14 +184,11 @@ class TestNotionPropertiesFormat:
         for item in ms["multi_select"]:
             assert "name" in item
 
-    def test_date_format(self):
+    def test_checkbox_format(self):
         props = NotionSchemas.orm_to_notion(
-            CompanyORM(name="X", created_at=datetime(2026, 1, 15))
+            CompanyORM(name="X", is_disqualified=True)
         )
-        d = props["Applied Date"]
-        assert "date" in d
-        assert "start" in d["date"]
-        assert d["date"]["start"] == "2026-01-15"
+        assert props["Disqualified"]["checkbox"] is True
 
 
 # ===========================================================================
@@ -244,9 +240,9 @@ class TestNotionToDictRoundTrip:
                         {"name": "Neo4j"},
                     ],
                 },
-                "Applied Date": {
-                    "type": "date",
-                    "date": {"start": "2026-03-05"},
+                "AI Native": {
+                    "type": "checkbox",
+                    "checkbox": True,
                 },
             },
         }
@@ -261,7 +257,7 @@ class TestNotionToDictRoundTrip:
         assert result["role"] == "AI Engineer"
         assert result["role_url"] == "https://jobs.example.com/123"
         assert result["differentiators"] == "Graph RAG, Neo4j"
-        assert result["created_at"] == "2026-03-05"
+        assert result["is_ai_native"] is True
         assert result["_notion_page_id"] == "abc-123"
         assert result["_notion_updated"] == "2026-03-05T10:00:00.000Z"
 
@@ -277,7 +273,6 @@ class TestNotionToDictRoundTrip:
                 "Stage": {"type": "status", "status": None},
                 "Position": {"type": "rich_text", "rich_text": []},
                 "Differentiators": {"type": "multi_select", "multi_select": []},
-                "Applied Date": {"type": "date", "date": None},
             },
         }
 
@@ -289,7 +284,6 @@ class TestNotionToDictRoundTrip:
         assert result["stage"] == ""
         assert result["role"] == ""
         assert result["differentiators"] == ""
-        assert result["created_at"] is None
 
 
 # ===========================================================================
@@ -449,9 +443,9 @@ class TestNewFieldsInFieldMap:
         assert notion_type == "url"
 
     def test_hm_linkedin_in_field_map(self):
-        """HM LinkedIn field must exist in _FIELD_MAP with url type."""
-        assert "HM LinkedIn" in NotionSchemas._FIELD_MAP
-        orm_field, notion_type = NotionSchemas._FIELD_MAP["HM LinkedIn"]
+        """Hiring Manager LinkedIn field must exist in _FIELD_MAP with url type."""
+        assert "Hiring Manager LinkedIn" in NotionSchemas._FIELD_MAP
+        orm_field, notion_type = NotionSchemas._FIELD_MAP["Hiring Manager LinkedIn"]
         assert orm_field == "hiring_manager_linkedin"
         assert notion_type == "url"
 
@@ -486,8 +480,8 @@ class TestNewFieldPropertyFormats:
             hiring_manager_linkedin="https://linkedin.com/in/janedoe",
         )
         props = NotionSchemas.orm_to_notion(company)
-        assert "HM LinkedIn" in props
-        assert props["HM LinkedIn"] == {"url": "https://linkedin.com/in/janedoe"}
+        assert "Hiring Manager LinkedIn" in props
+        assert props["Hiring Manager LinkedIn"] == {"url": "https://linkedin.com/in/janedoe"}
 
     def test_why_fit_produces_rich_text_format(self):
         company = CompanyORM(
@@ -574,7 +568,7 @@ class TestDryRun:
         )
         result = asyncio.run(crm.sync_company(company, dry_run=True))
         assert "LinkedIn URL" in result
-        assert "HM LinkedIn" in result
+        assert "Hiring Manager LinkedIn" in result
         assert "Why Fit" in result
         assert "Best Stats" in result
 

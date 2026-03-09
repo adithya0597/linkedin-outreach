@@ -39,8 +39,10 @@ class PatchrightScraper(BaseScraper):
         self._pw = None
 
     async def _launch(self, headless: bool = False):
-        """Launch Patchright browser with stealth settings.
+        """Launch Patchright browser using Chrome profile for existing sessions.
 
+        Uses launch_persistent_context() with the Chrome user data directory
+        so cookies/logins from your regular Chrome are available.
         Falls back to regular Playwright if Patchright is not installed.
         """
         try:
@@ -50,22 +52,20 @@ class PatchrightScraper(BaseScraper):
             logger.warning("Patchright not installed, falling back to Playwright (less stealth)")
             from playwright.async_api import async_playwright
 
+        from src.config.settings import get_settings
+        settings = get_settings()
+
         self._pw = await async_playwright().start()
-        self._browser = await self._pw.chromium.launch(
+        self._context = await self._pw.chromium.launch_persistent_context(
+            user_data_dir=settings.chrome_user_data_dir,
             headless=headless,
+            channel="chrome",
             args=[
                 "--disable-blink-features=AutomationControlled",
                 "--no-first-run",
                 "--no-default-browser-check",
             ],
-        )
-        self._context = await self._browser.new_context(
             viewport={"width": 1366, "height": 768},
-            user_agent=(
-                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) "
-                "Chrome/122.0.0.0 Safari/537.36"
-            ),
             locale="en-US",
             timezone_id="America/Chicago",
         )
@@ -76,9 +76,8 @@ class PatchrightScraper(BaseScraper):
         if self._context:
             await self._context.close()
             self._context = None
-        if self._browser:
-            await self._browser.close()
-            self._browser = None
+        # No separate _browser with launch_persistent_context
+        self._browser = None
         if self._pw:
             await self._pw.stop()
             self._pw = None

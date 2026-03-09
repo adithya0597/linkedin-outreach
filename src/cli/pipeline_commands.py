@@ -16,6 +16,7 @@ def run_pipeline(
     skip_score: bool = typer.Option(False, help="Skip scoring step"),
     h1b_verify: bool = typer.Option(False, "--h1b", help="Run H1B verification step"),
     semantic: bool = typer.Option(False, help="Include semantic scoring"),
+    no_sync: bool = typer.Option(False, "--no-sync", help="Skip Notion sync after pipeline"),
 ):
     """Run full pipeline: validate -> h1b -> score all companies."""
     from src.db.database import get_engine, get_session
@@ -59,6 +60,10 @@ def run_pipeline(
             table.add_row(str(i), name, f"{score_val}", tier)
         console.print(table)
 
+    if not no_sync:
+        from src.cli._db import auto_sync
+        auto_sync(session)
+
     session.close()
 
 
@@ -93,6 +98,7 @@ def enrich(
     company: str = typer.Option(None, "--company", help="Enrich a specific company"),
     batch: bool = typer.Option(False, "--batch", help="Batch enrich all skeleton records"),
     threshold: float = typer.Option(50, "--threshold", help="Completeness threshold for skeleton detection"),
+    no_sync: bool = typer.Option(False, "--no-sync", help="Skip Notion sync after enrichment"),
 ):
     """Enrich company data by parsing text fields for structured information."""
     from src.db.database import get_engine, get_session, init_db
@@ -103,6 +109,7 @@ def enrich(
     session = get_session(engine)
 
     enricher = CompanyEnricher(session)
+    did_modify = False
 
     if company:
         from src.db.orm import CompanyORM
@@ -119,10 +126,12 @@ def enrich(
             for field, value in changes.items():
                 console.print(f"  {field}: {value}")
             session.commit()
+            did_modify = True
         else:
             console.print(f"[yellow]No new data found for {comp.name}.[/yellow]")
     elif batch:
         result = enricher.batch_enrich(threshold=threshold)
+        did_modify = result["enriched"] > 0
 
         table = Table(title="Batch Enrichment Results")
         table.add_column("Metric", style="bold")
@@ -153,6 +162,10 @@ def enrich(
             console.print(table)
         else:
             console.print(f"[green]No skeleton records below {threshold}%.[/green]")
+
+    if did_modify and not no_sync:
+        from src.cli._db import auto_sync
+        auto_sync(session)
 
     session.close()
 

@@ -158,10 +158,11 @@ Quick reference:
 ## NOTION CRM
 
 ### Database: Applications (Job Application Tracker)
-- **Database ID:** `0c412604-a409-47ab-8c04-29f112c2c683`
+- **Database ID:** `f6b465c8-96f7-4dfb-ac30-ca6a5f718140`
 - **Parent Page:** `f6b465c896f74dfbac30ca6a5f718140`
-- **100 company entries** with: Tier, Fit Score, H1B Status, Stage, Hiring Manager, Link, Salary, Notes
-- **Schema fields:** Company (Title), Tier (Select), Fit Score (Number), H1B Sponsorship (Select), Stage (Status), Position (Text), Hiring Manager (Text), Link (URL), Salary Range (Text), Source Portal (Select), Notes (Text), Differentiators (Multi-select), Applied Date (Date), Follow Up (Date)
+- **299 company entries** synced bidirectionally (local DB ↔ Notion)
+- **43 mapped fields** in `NotionSchemas._FIELD_MAP` (see `src/integrations/notion_sync.py`)
+- **Auto-sync** wired into all CLI commands that modify data (`--no-sync` to skip)
 
 ### Field Format Notes (for Notion API calls)
 - Multi-select (Differentiators): Must be single string, NOT array
@@ -193,3 +194,4 @@ Quick reference:
 | 2026-03-06 | Session 20: P1+P2 feature build via 5-agent swarm. H1B seed enrichment (h1b_lookup.py, 11 Tier 1 entries updated), company auto-creation from postings (persistence.py 3-tuple return), LinkedIn contact research module, outreach personalizer (5 domains, Tier 1 overrides), Notion sync +4 fields + dry_run, dashboard portal scores + health widgets, 23 files archived. 5 new CLI commands (enrich-h1b, contacts, record-contact, rank-contacts, viewers). 516 tests, 80% coverage |
 | 2026-03-07 | Session 26: Validated Tier 1 → cut from 12 to 6 (Cursor/Hippocratic/Augment/PairTeam/EvenUp/Kumo dropped). Notion CRM reclassified 5 companies (Stage=Rejected). Building ATS scrapers (Ashby+Greenhouse). Preparing outreach execution for 6 verified companies. |
 | 2026-03-09 | Session 27: Intelligence-Driven Scraper Migration — 14-agent swarm across 5 waves. Replaced 7 broken scrapers with 4-tier architecture: Tier S (ATS APIs: Ashby, Greenhouse, Lever, Hiring Cafe), Tier A (httpx: Wellfound __NEXT_DATA__, YC/WTTJ Algolia APIs, startup.jobs, Top Startups, AI Jobs), Tier B (MCP Playwright: LinkedIn primary + Gmail alerts supplementary, Built In/JobBoard AI probes), Tier C (Patchright stealth: Jobright, TrueUp), Tier D (JobSpy aggregator, HN Hiring). 18 total scrapers, 146 new tests pass, 22 new files created. |
+| 2026-03-09 | Session 28: Bidirectional Notion Sync — 7-agent schema audit (53 ORM fields vs 20 Notion properties), created 23 new Notion properties across 3 tiers, expanded _FIELD_MAP to 43 entries. Full sync: 299 companies pushed, 104 pulled, 17 new upserted, 1800 conflicts resolved (NEWEST_WINS). Auto-sync wired into 8 CLI commands + Pipeline + DailyOrchestrator with --no-sync flag. Fixed Patchright to use Chrome profile. 1044 tests pass. |

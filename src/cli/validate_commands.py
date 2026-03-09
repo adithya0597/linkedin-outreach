@@ -65,6 +65,7 @@ def score(
 def score_all(
     semantic: bool = typer.Option(False, help="Include semantic + domain match scoring"),
     limit: int = typer.Option(None, help="Limit to top N results displayed"),
+    no_sync: bool = typer.Option(False, "--no-sync", help="Skip Notion sync after scoring"),
 ):
     """Re-score all companies with optional domain match bonus."""
     from src.db.database import get_engine, get_session, init_db
@@ -92,6 +93,10 @@ def score_all(
         table.add_row(str(i), name, f"{score_val}", tier_val)
     console.print(table)
 
+    if not no_sync:
+        from src.cli._db import auto_sync
+        auto_sync(session)
+
     session.close()
 
 
@@ -99,6 +104,7 @@ def score_all(
 def h1b(
     company: str = typer.Argument(help="Company name to verify H1B status"),
     batch: bool = typer.Option(False, help="Verify all unverified companies"),
+    no_sync: bool = typer.Option(False, "--no-sync", help="Skip Notion sync after verification"),
 ):
     """Verify H1B sponsorship status via 3-source waterfall."""
     import asyncio
@@ -151,12 +157,17 @@ def h1b(
             table.add_row("E-Verify", "Yes")
         console.print(table)
 
+    if not no_sync:
+        from src.cli._db import auto_sync
+        auto_sync(session)
+
     session.close()
 
 
 @app.command(name="enrich-h1b")
 def enrich_h1b(
     dry_run: bool = typer.Option(False, "--dry-run", help="Show matches without updating"),
+    no_sync: bool = typer.Option(False, "--no-sync", help="Skip Notion sync after enrichment"),
 ):
     """Apply known H1B statuses from Frog Hire lookup to Unknown companies."""
     from src.db.database import get_engine, get_session, init_db
@@ -187,6 +198,9 @@ def enrich_h1b(
     else:
         count = apply_known_statuses(session)
         console.print(f"[green]Updated {count} companies with known H1B statuses.[/green]")
+        if not no_sync:
+            from src.cli._db import auto_sync
+            auto_sync(session)
 
     session.close()
 

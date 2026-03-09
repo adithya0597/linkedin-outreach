@@ -59,15 +59,22 @@ class DailyOrchestrator:
         return manager.generate_daily_alert()
 
     def _run_sync(self, dry_run: bool = False) -> dict:
-        """Stage 5: Sync outreach stages to Notion."""
+        """Stage 6: Full bidirectional Notion sync."""
         import os
 
-        from src.integrations.outreach_sync import OutreachNotionSync
+        from src.integrations.notion_bidirectional import ConflictStrategy, NotionBidirectionalSync
 
         api_key = os.environ.get("NOTION_API_KEY", "")
-        db_id = os.environ.get("NOTION_DB_ID", "")
-        syncer = OutreachNotionSync(api_key, db_id, self.session)
-        return asyncio.run(syncer.sync_all_outreach_stages(dry_run=dry_run))
+        db_id = os.environ.get("NOTION_DB_ID", "") or os.environ.get(
+            "NOTION_DATABASE_ID", ""
+        )
+        if not api_key or not db_id:
+            logger.warning("Notion credentials not set, skipping sync")
+            return {"skipped": True, "reason": "no credentials"}
+        syncer = NotionBidirectionalSync(api_key, db_id, self.session)
+        return asyncio.run(
+            syncer.full_sync(strategy=ConflictStrategy.NEWEST_WINS, dry_run=dry_run)
+        )
 
     def run_full_day(
         self,

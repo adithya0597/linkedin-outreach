@@ -19,6 +19,7 @@ def scan(
     keywords: str = typer.Option("", help="Comma-separated keywords (overrides portal config)"),
     smart: bool = typer.Option(False, "--smart", help="Auto-skip demoted portals via PortalScorer"),
     days: int = typer.Option(30, "--days", help="Only include postings from the last N days"),
+    no_sync: bool = typer.Option(False, "--no-sync", help="Skip Notion sync after scan"),
 ):
     """Scan job portals for new listings."""
     import asyncio
@@ -132,6 +133,11 @@ def scan(
         console.print(f"\n[bold]Total: {total_found} found, {total_new} new[/bold]")
 
     asyncio.run(_run_scans())
+
+    if not no_sync:
+        from src.cli._db import auto_sync
+        auto_sync(session)
+
     session.close()
 
 

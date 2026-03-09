@@ -19,25 +19,63 @@ class NotionSchemas:
     """Maps CompanyORM fields to Notion database properties and back."""
 
     # Notion property name -> (orm_field, notion_type)
+    # Must match actual Notion database schema exactly.
     _FIELD_MAP: dict[str, tuple[str, str]] = {
+        # Identity & classification
         "Company": ("name", "title"),
         "Tier": ("tier", "select"),
-        "Fit Score": ("fit_score", "number"),
-        "H1B Sponsorship": ("h1b_status", "select"),
         "Stage": ("stage", "status"),
+        "Source Portal": ("source_portal", "select"),
+        # Scoring
+        "Fit Score": ("fit_score", "number"),
+        "H1B Score": ("score_h1b", "number"),
+        "Company Fit": ("score_criteria", "number"),
+        "Tech Stack": ("score_tech_overlap", "number"),
+        "Salary Score": ("score_salary", "number"),
+        "Role Fit": ("score_profile_jd", "number"),
+        "Domain": ("score_domain_company", "number"),
+        "Domain Match Score": ("score_domain_match", "number"),
+        # H1B
+        "H1B Sponsorship": ("h1b_status", "select"),
+        "H1B Source": ("h1b_source", "rich_text"),
+        "H1B Details": ("h1b_details", "rich_text"),
+        # Company metadata
+        "Description": ("ai_product_description", "rich_text"),
+        "HQ Location": ("hq_location", "rich_text"),
+        "Employees": ("employees", "number"),
+        "Funding Stage": ("funding_stage", "select"),
+        "Founded Year": ("founded_year", "number"),
+        "Total Raised": ("total_raised", "rich_text"),
+        "Valuation": ("valuation", "rich_text"),
+        "AI Native": ("is_ai_native", "checkbox"),
+        # URLs
+        "Link": ("role_url", "url"),
+        "Company Website": ("website", "url"),
+        "Careers Page": ("careers_url", "url"),
+        "LinkedIn URL": ("linkedin_url", "url"),
+        # Hiring & outreach
         "Position": ("role", "rich_text"),
         "Hiring Manager": ("hiring_manager", "rich_text"),
-        "Link": ("role_url", "url"),
+        "Hiring Manager LinkedIn": ("hiring_manager_linkedin", "url"),
         "Salary Range": ("salary_range", "rich_text"),
-        "Source Portal": ("source_portal", "select"),
-        "Notes": ("notes", "rich_text"),
-        "Differentiators": ("differentiators", "multi_select"),
-        "Applied Date": ("created_at", "date"),
-        "Follow Up": ("updated_at", "date"),
-        "LinkedIn URL": ("linkedin_url", "url"),
-        "HM LinkedIn": ("hiring_manager_linkedin", "url"),
         "Why Fit": ("why_fit", "rich_text"),
         "Best Stats": ("best_stats", "rich_text"),
+        "Notes": ("notes", "rich_text"),
+        "Differentiators": ("differentiators", "multi_select"),
+        "Next Action": ("action", "rich_text"),
+        # Validation & QA
+        "Validation Status": ("validation_result", "select"),
+        "Validation Notes": ("validation_notes", "rich_text"),
+        "Disqualified": ("is_disqualified", "checkbox"),
+        "Disqualification Reason": ("disqualification_reason", "rich_text"),
+        "Needs Review": ("needs_review", "checkbox"),
+        "ATS Platform": ("ats_platform", "select"),
+    }
+
+    # Notion status fields have a FIXED set of options (unlike select which auto-creates).
+    # Map any DB values that don't exist in Notion to their closest valid option.
+    _STAGE_MAP: dict[str, str] = {
+        "Disqualified": "Rejected",
     }
 
     @classmethod
@@ -46,6 +84,9 @@ class NotionSchemas:
         props: dict = {}
         for notion_name, (orm_field, notion_type) in cls._FIELD_MAP.items():
             value = getattr(company, orm_field, None)
+            # Remap invalid status values before conversion
+            if notion_type == "status" and value in cls._STAGE_MAP:
+                value = cls._STAGE_MAP[value]
             prop = cls._to_notion_property(value, notion_type)
             if prop is not None:
                 props[notion_name] = prop
