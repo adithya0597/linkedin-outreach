@@ -90,6 +90,8 @@ def scan(
         console.print(f"[bold]Smart scan: using {len(scrapers)} portals (demoted excluded)[/bold]")
 
     async def _run_scans() -> None:
+        from src.scrapers.concurrent_runner import ConcurrentScanRunner
+
         results_table = Table(title="Scan Results")
         results_table.add_column("Portal", style="bold")
         results_table.add_column("Found", justify="right")
@@ -100,35 +102,69 @@ def scan(
         total_found = 0
         total_new = 0
 
+        # Separate healthy vs unhealthy scrapers
+        healthy_scrapers = []
         for s in scrapers:
             if not s.is_healthy():
                 results_table.add_row(s.name, "-", "-", "-", "[red]Skipped (unhealthy)[/red]")
-                continue
+            else:
+                healthy_scrapers.append(s)
 
-            portal_kws = kw_override or portal_keywords.get(s.name, ["AI Engineer", "ML Engineer"])
+        if healthy_scrapers:
+            # Build per-scraper keyword map
+            scraper_kw_map = {}
+            for s in healthy_scrapers:
+                scraper_kw_map[s.name] = kw_override or portal_keywords.get(
+                    s.name, ["AI Engineer", "ML Engineer"]
+                )
 
-            start = time.time()
-            try:
-                postings = await s.search(portal_kws, days=days)
-                elapsed = time.time() - start
+            # Persist callback per-result (called by the DB writer)
+            persist_results = {}
+
+            def _persist(portal_name, entries):
                 found, new, new_co = persist_scan_results(
-                    session, s.name, postings, scan_type, elapsed
+                    session, portal_name, entries, scan_type
                 )
-                total_found += found
-                total_new += new
-                results_table.add_row(
-                    s.name,
-                    str(found),
-                    f"[green]{new}[/green]",
-                    f"{elapsed:.1f}s",
-                    "[green]OK[/green]",
-                )
-            except Exception as e:
-                elapsed = time.time() - start
-                persist_scan_results(session, s.name, [], scan_type, elapsed, errors=str(e))
-                results_table.add_row(
-                    s.name, "0", "0", f"{elapsed:.1f}s", f"[red]Error: {e}[/red]"
-                )
+                persist_results[portal_name] = (found, new, new_co)
+
+            # Wrap each scraper so its keywords are baked in
+            class _KeywordWrapper:
+                def __init__(self, scraper, kws):
+                    self._scraper = scraper
+                    self._kws = kws
+                    self.name = scraper.name
+                    self.portal_name = scraper.name
+
+                async def search(self, _query, **kw):
+                    return await self._scraper.search(self._kws, **kw)
+
+            wrapped = [_KeywordWrapper(s, scraper_kw_map[s.name]) for s in healthy_scrapers]
+
+            runner = ConcurrentScanRunner(max_concurrent=5)
+            await runner.run_all(wrapped, query=None, filters={"days": days}, persist_fn=_persist)
+
+            # Build results table from runner.results
+            for result in runner.results:
+                if result.error:
+                    persist_scan_results(
+                        session, result.portal, [], scan_type, result.duration, errors=result.error
+                    )
+                    results_table.add_row(
+                        result.portal, "0", "0",
+                        f"{result.duration:.1f}s",
+                        f"[red]Error: {result.error}[/red]",
+                    )
+                else:
+                    found, new, _ = persist_results.get(result.portal, (len(result.entries), 0, 0))
+                    total_found += found
+                    total_new += new
+                    results_table.add_row(
+                        result.portal,
+                        str(found),
+                        f"[green]{new}[/green]",
+                        f"{result.duration:.1f}s",
+                        "[green]OK[/green]",
+                    )
 
         console.print(results_table)
         console.print(f"\n[bold]Total: {total_found} found, {total_new} new[/bold]")
