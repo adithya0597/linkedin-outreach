@@ -43,41 +43,13 @@ class HNHiringScraper(HttpxScraper):
 
         for kw in keywords:
             await self._throttle()
-            # hnhiring.com provides technology-specific JSON endpoints
-            slug = kw.lower().replace(" ", "-")
-            url = f"https://hnhiring.com/technologies/{slug}.json"
-
-            try:
-                response = await client.get(url)
-                if response.status_code == 404:
-                    # Try the search endpoint instead
-                    url = f"https://hnhiring.com/search.json?q={slug}"
-                    response = await client.get(url)
-                response.raise_for_status()
-            except httpx.HTTPError as e:
-                logger.warning(f"hnhiring.com request failed for '{kw}': {e}")
-                # Fallback: try HN Algolia API
-                fallback_results = await self._search_hn_algolia(client, kw, days)
-                for p in fallback_results:
-                    if p.url not in seen_urls:
-                        seen_urls.add(p.url)
+            # Go directly to HN Algolia API (hnhiring.com is dead)
+            algolia_results = await self._search_hn_algolia(client, kw, days)
+            for p in algolia_results:
+                if p.url and p.url not in seen_urls:
+                    seen_urls.add(p.url)
+                    if self.apply_h1b_filter(p):
                         results.append(p)
-                continue
-
-            try:
-                data = response.json()
-            except (ValueError, TypeError) as e:
-                logger.warning(f"hnhiring.com JSON parse failed for '{kw}': {e}")
-                continue
-
-            items = data if isinstance(data, list) else data.get("results", data.get("items", []))
-
-            for item in items:
-                posting = self._parse_hn_item(item)
-                if posting and posting.url and posting.url not in seen_urls:
-                    seen_urls.add(posting.url)
-                    if self.apply_h1b_filter(posting):
-                        results.append(posting)
 
         logger.info(f"HNHiringScraper found {len(results)} postings")
         return results
@@ -150,7 +122,7 @@ class HNHiringScraper(HttpxScraper):
             location=location[:100],
             url=job_url,
             work_model=work_model,
-            source_portal=SourcePortal.MANUAL,
+            source_portal=SourcePortal.HN_HIRING,
             h1b_mentioned=h1b_mentioned,
             h1b_text=h1b_text,
             posted_date=posted_date,

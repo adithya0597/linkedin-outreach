@@ -53,7 +53,7 @@ def build_default_registry() -> PortalRegistry:
       Tier S — Zero Risk (APIs): Ashby, Greenhouse, Hiring Cafe
       Tier A — Low Risk (httpx): Wellfound (__NEXT_DATA__), YC (Algolia),
                WTTJ (Algolia), startup.jobs, Top Startups, AI Jobs
-      Tier B — MCP Playwright: LinkedIn (primary), Built In, JobBoard AI
+      Tier B — Patchright: LinkedIn (primary), Built In, JobBoard AI
       Tier C — Medium Risk (Patchright): Jobright, TrueUp
       Tier D — New Sources: JobSpy, HN Hiring
     """
@@ -73,7 +73,8 @@ def build_default_registry() -> PortalRegistry:
     from src.scrapers.jobspy_scraper import JobSpyScraper
     from src.scrapers.linkedin_email_ingest import LinkedInAlertScraper
     from src.scrapers.linkedin_scraper import LinkedInPatchrightScraper
-    from src.scrapers.mcp_scraper import MCPPlaywrightScraper
+    from src.scrapers.builtin_scraper import BuiltInPatchrightScraper
+    from src.scrapers.jobboardai_scraper import JobBoardAIPatchrightScraper
     from src.scrapers.patchright_scraper import (
         JobrightPatchrightScraper,
         TrueUpPatchrightScraper,
@@ -89,7 +90,8 @@ def build_default_registry() -> PortalRegistry:
     rl.configure("Work at a Startup (YC)", 0.3)    # browser-based homepage-first
     rl.configure("Welcome to the Jungle", 0.3)     # browser-based homepage-first
     rl.configure("startup.jobs", 0.3)              # browser-based homepage-first
-    rl.configure("Built In", 1.0)                  # MCP Playwright
+    rl.configure("Built In", 0.3)                   # browser-based, Fastly + HUMAN Security
+    rl.configure("JobBoard AI", 0.5)                 # browser-based
     rl.configure("Ashby", 2.0)                     # ATS API
     rl.configure("Greenhouse", 2.0)                # ATS API
     registry = PortalRegistry()
@@ -110,12 +112,8 @@ def build_default_registry() -> PortalRegistry:
         # ── Tier B: Patchright stealth (LinkedIn, logged-in Chrome) ─
         ("linkedin", LinkedInPatchrightScraper(rate_limiter=rl)),
         ("linkedin_alerts", LinkedInAlertScraper(rate_limiter=rl)),
-        ("builtin", MCPPlaywrightScraper(
-            SourcePortal.BUILT_IN, skill_name="scan-builtin", rate_limiter=rl,
-        )),
-        ("jobboard_ai", MCPPlaywrightScraper(
-            SourcePortal.JOBBOARD_AI, skill_name="scan-jobboard-ai", rate_limiter=rl,
-        )),
+        ("builtin", BuiltInPatchrightScraper(rate_limiter=rl)),
+        ("jobboard_ai", JobBoardAIPatchrightScraper(rate_limiter=rl)),
         # ── Tier C: Medium Risk (Patchright stealth browser) ─────
         ("jobright", JobrightPatchrightScraper(rate_limiter=rl)),
         ("trueup", TrueUpPatchrightScraper(rate_limiter=rl)),
