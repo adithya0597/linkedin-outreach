@@ -39,6 +39,16 @@ class PatchrightScraper(BaseScraper):
         self._context = None
         self._pw = None
 
+    @staticmethod
+    def _get_timezone() -> str:
+        """Get timezone from settings, falling back to America/Chicago."""
+        try:
+            from src.config.settings import get_settings
+            tz = getattr(get_settings(), "timezone", None)
+            return tz or "America/Chicago"
+        except Exception:
+            return "America/Chicago"
+
     async def _launch(self, headless: bool = False):
         """Launch Patchright browser using Chrome profile for existing sessions.
 
@@ -74,7 +84,7 @@ class PatchrightScraper(BaseScraper):
             ],
             viewport={"width": 1366, "height": 768},
             locale="en-US",
-            timezone_id="America/Chicago",
+            timezone_id=self._get_timezone(),
         )
         return self._context
 
@@ -198,7 +208,8 @@ class JobrightPatchrightScraper(PatchrightScraper):
                 source_portal=SourcePortal.JOBRIGHT,
                 discovered_date=datetime.now(),
             )
-        except Exception:
+        except (AttributeError, RuntimeError, TimeoutError) as e:
+            logger.warning(f"Jobright: failed to parse card: {e}")
             return None
 
 
@@ -301,6 +312,7 @@ class TrueUpPatchrightScraper(PatchrightScraper):
                 source_portal=SourcePortal.TRUEUP,
                 discovered_date=datetime.now(),
             )
-        except Exception:
+        except (AttributeError, RuntimeError, TimeoutError) as e:
+            logger.warning(f"TrueUp: failed to parse card: {e}")
             return None
 

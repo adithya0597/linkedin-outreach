@@ -65,7 +65,8 @@ class HNHiringScraper(HttpxScraper):
 
             try:
                 data = response.json()
-            except Exception:
+            except (ValueError, TypeError) as e:
+                logger.warning(f"hnhiring.com JSON parse failed for '{kw}': {e}")
                 continue
 
             items = data if isinstance(data, list) else data.get("results", data.get("items", []))
@@ -174,7 +175,8 @@ class HNHiringScraper(HttpxScraper):
             response = await client.get(url)
             response.raise_for_status()
             data = response.json()
-        except Exception:
+        except (httpx.HTTPError, ValueError, TypeError) as e:
+            logger.warning(f"HN Algolia fallback failed for '{keyword}': {e}")
             return results
 
         for hit in data.get("hits", [])[:30]:
