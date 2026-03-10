@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime
+from datetime import datetime, timezone
 
 from loguru import logger
 
@@ -15,67 +15,57 @@ from src.integrations.notion_base import (
 )
 
 
+def _parse_iso_utc(value: str | None) -> datetime | None:
+    """Parse a Notion ISO datetime string to a UTC-aware datetime."""
+    if not value:
+        return None
+    try:
+        cleaned = str(value).replace("Z", "+00:00")
+        return datetime.fromisoformat(cleaned)
+    except (ValueError, TypeError):
+        return None
+
+
+def _ensure_utc(dt: datetime) -> datetime:
+    """Normalise a datetime to UTC-aware."""
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
+
+
 class NotionSchemas:
     """Maps CompanyORM fields to Notion database properties and back."""
 
     # Notion property name -> (orm_field, notion_type)
-    # Must match actual Notion database schema exactly.
     _FIELD_MAP: dict[str, tuple[str, str]] = {
-        # Identity & classification
         "Company": ("name", "title"),
         "Tier": ("tier", "select"),
-        "Stage": ("stage", "status"),
-        "Source Portal": ("source_portal", "select"),
-        # Scoring
         "Fit Score": ("fit_score", "number"),
-        "H1B Score": ("score_h1b", "number"),
-        "Company Fit": ("score_criteria", "number"),
-        "Tech Stack": ("score_tech_overlap", "number"),
-        "Salary Score": ("score_salary", "number"),
-        "Role Fit": ("score_profile_jd", "number"),
-        "Domain": ("score_domain_company", "number"),
-        "Domain Match Score": ("score_domain_match", "number"),
-        # H1B
         "H1B Sponsorship": ("h1b_status", "select"),
-        "H1B Source": ("h1b_source", "rich_text"),
-        "H1B Details": ("h1b_details", "rich_text"),
-        # Company metadata
-        "Description": ("ai_product_description", "rich_text"),
-        "HQ Location": ("hq_location", "rich_text"),
-        "Employees": ("employees", "number"),
-        "Funding Stage": ("funding_stage", "select"),
-        "Founded Year": ("founded_year", "number"),
-        "Total Raised": ("total_raised", "rich_text"),
-        "Valuation": ("valuation", "rich_text"),
-        "AI Native": ("is_ai_native", "checkbox"),
-        # URLs
-        "Link": ("role_url", "url"),
-        "Company Website": ("website", "url"),
-        "Careers Page": ("careers_url", "url"),
-        "LinkedIn URL": ("linkedin_url", "url"),
-        # Hiring & outreach
+        "Stage": ("stage", "status"),
         "Position": ("role", "rich_text"),
         "Hiring Manager": ("hiring_manager", "rich_text"),
-        "Hiring Manager LinkedIn": ("hiring_manager_linkedin", "url"),
+        "Link": ("role_url", "url"),
         "Salary Range": ("salary_range", "rich_text"),
-        "Why Fit": ("why_fit", "rich_text"),
-        "Best Stats": ("best_stats", "rich_text"),
+        "Source Portal": ("source_portal", "select"),
         "Notes": ("notes", "rich_text"),
         "Differentiators": ("differentiators", "multi_select"),
-        "Next Action": ("action", "rich_text"),
-        # Validation & QA
-        "Validation Status": ("validation_result", "select"),
-        "Validation Notes": ("validation_notes", "rich_text"),
-        "Disqualified": ("is_disqualified", "checkbox"),
-        "Disqualification Reason": ("disqualification_reason", "rich_text"),
-        "Needs Review": ("needs_review", "checkbox"),
+        "Applied Date": ("created_at", "date"),
+        "Follow Up": ("updated_at", "date"),
+        "LinkedIn URL": ("linkedin_url", "url"),
+        "HM LinkedIn": ("hiring_manager_linkedin", "url"),
+        "Why Fit": ("why_fit", "rich_text"),
+        "Best Stats": ("best_stats", "rich_text"),
         "ATS Platform": ("ats_platform", "select"),
-    }
-
-    # Notion status fields have a FIXED set of options (unlike select which auto-creates).
-    # Map any DB values that don't exist in Notion to their closest valid option.
-    _STAGE_MAP: dict[str, str] = {
-        "Disqualified": "Rejected",
+        "ATS Slug": ("ats_slug", "rich_text"),
+        "Employees": ("employees_range", "rich_text"),
+        "Funding Amount": ("funding_amount", "rich_text"),
+        "Data Completeness": ("data_completeness", "number"),
+        "Validation": ("validation_result", "select"),
+        "Tech Overlap": ("score_tech_overlap", "number"),
+        "Criteria Score": ("score_criteria", "number"),
+        "Salary Score": ("score_salary", "number"),
+        "H1B Score": ("score_h1b", "number"),
     }
 
     @classmethod
@@ -84,9 +74,6 @@ class NotionSchemas:
         props: dict = {}
         for notion_name, (orm_field, notion_type) in cls._FIELD_MAP.items():
             value = getattr(company, orm_field, None)
-            # Remap invalid status values before conversion
-            if notion_type == "status" and value in cls._STAGE_MAP:
-                value = cls._STAGE_MAP[value]
             prop = cls._to_notion_property(value, notion_type)
             if prop is not None:
                 props[notion_name] = prop
@@ -136,16 +123,39 @@ class NotionCRM(NotionAPIClient):
         results = data.get("results", [])
         return results[0]["id"] if results else None
 
-    async def sync_company(self, company: CompanyORM, dry_run: bool = False) -> str | dict:
-        """Upsert a company to Notion. Returns the page_id (or properties dict if dry_run)."""
+    async def sync_company(
+        self,
+        company: CompanyORM,
+        dry_run: bool = False,
+        page_id_cache: dict[str, str] | None = None,
+    ) -> str | dict:
+        """Upsert a company to Notion. Returns the page_id (or properties dict if dry_run).
+
+        If *page_id_cache* is provided, the cached mapping is consulted first
+        to avoid a per-company ``find_page_by_name`` API call.
+        """
         properties = NotionSchemas.orm_to_notion(company)
 
         if dry_run:
             return properties
 
-        page_id = await self.find_page_by_name(company.name)
+        if page_id_cache is not None:
+            page_id = page_id_cache.get(company.name)
+        else:
+            page_id = await self.find_page_by_name(company.name)
 
         if page_id:
+            # Check conflict: compare timestamps
+            page = await self._request("GET", f"{NOTION_BASE}/pages/{page_id}")
+            notion_updated = page.get("last_edited_time", "")
+            local_updated = (
+                company.updated_at.isoformat() if company.updated_at else ""
+            )
+
+            # If Notion was updated more recently, skip the push
+            if notion_updated > local_updated:
+                return page_id
+
             await self._request(
                 "PATCH",
                 f"{NOTION_BASE}/pages/{page_id}",
@@ -187,10 +197,15 @@ class NotionCRM(NotionAPIClient):
         return all_results
 
     async def push_all(self, companies: list[CompanyORM]) -> list[str]:
-        """Push all companies to Notion via upsert. Returns list of page_ids."""
+        """Push all companies to Notion via upsert. Returns list of page_ids.
+
+        Fetches all page IDs in one batch call upfront to avoid N individual
+        ``find_page_by_name`` queries.
+        """
+        page_id_cache = await self.get_all_page_ids()
         page_ids: list[str] = []
         for company in companies:
-            pid = await self.sync_company(company)
+            pid = await self.sync_company(company, page_id_cache=page_id_cache)
             page_ids.append(pid)
         return page_ids
 
@@ -238,17 +253,21 @@ class NotionCRM(NotionAPIClient):
     ) -> list[str]:
         """Push with semaphore-limited concurrency.
 
-        Each company is pushed via sync_company in parallel, with at most
-        *max_concurrent* in-flight requests.  Failures are logged and skipped;
-        one failure does not stop the rest.
+        Fetches all page IDs in one batch call upfront, then pushes each
+        company via sync_company in parallel, with at most *max_concurrent*
+        in-flight requests.  Failures are logged and skipped; one failure
+        does not stop the rest.
         """
+        page_id_cache = await self.get_all_page_ids()
         sem = asyncio.Semaphore(max_concurrent)
         results: list[str] = []
 
         async def _push_one(company):
             async with sem:
                 try:
-                    page_id = await self.sync_company(company)
+                    page_id = await self.sync_company(
+                        company, page_id_cache=page_id_cache
+                    )
                     return page_id
                 except Exception as e:
                     logger.warning(f"Failed to push {company.name}: {e}")

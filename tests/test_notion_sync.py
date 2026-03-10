@@ -84,9 +84,9 @@ class TestNotionSchemas:
         assert props["Link"]["url"] == "https://example.com/jobs/123"
 
     def test_schema_mapping_multi_select_differentiators(self):
-        """Comma-separated differentiators become Notion multi_select."""
+        """Pipe-separated differentiators become Notion multi_select."""
         company = CompanyORM(
-            name="TestCo", differentiators="Graph RAG, Neo4j, Vector DB"
+            name="TestCo", differentiators="Graph RAG | Neo4j | Vector DB"
         )
         props = NotionSchemas.orm_to_notion(company)
 
@@ -96,11 +96,12 @@ class TestNotionSchemas:
         assert ms[1]["name"] == "Neo4j"
         assert ms[2]["name"] == "Vector DB"
 
-    def test_schema_mapping_checkbox_field(self):
-        """Boolean fields convert to Notion checkbox."""
-        company = CompanyORM(name="TestCo", is_ai_native=True)
+    def test_schema_mapping_date_field(self):
+        """DateTime fields convert to Notion date format."""
+        dt = datetime(2026, 3, 5, 14, 30, 0)
+        company = CompanyORM(name="TestCo", created_at=dt)
         props = NotionSchemas.orm_to_notion(company)
-        assert props["AI Native"]["checkbox"] is True
+        assert props["Applied Date"]["date"]["start"] == "2026-03-05"
 
     def test_schema_mapping_empty_fields_omitted(self):
         """Empty/None fields are not included in the output."""
@@ -184,11 +185,14 @@ class TestNotionPropertiesFormat:
         for item in ms["multi_select"]:
             assert "name" in item
 
-    def test_checkbox_format(self):
+    def test_date_format(self):
         props = NotionSchemas.orm_to_notion(
-            CompanyORM(name="X", is_disqualified=True)
+            CompanyORM(name="X", created_at=datetime(2026, 1, 15))
         )
-        assert props["Disqualified"]["checkbox"] is True
+        d = props["Applied Date"]
+        assert "date" in d
+        assert "start" in d["date"]
+        assert d["date"]["start"] == "2026-01-15"
 
 
 # ===========================================================================
@@ -240,9 +244,9 @@ class TestNotionToDictRoundTrip:
                         {"name": "Neo4j"},
                     ],
                 },
-                "AI Native": {
-                    "type": "checkbox",
-                    "checkbox": True,
+                "Applied Date": {
+                    "type": "date",
+                    "date": {"start": "2026-03-05"},
                 },
             },
         }
@@ -256,8 +260,8 @@ class TestNotionToDictRoundTrip:
         assert result["stage"] == "To apply"
         assert result["role"] == "AI Engineer"
         assert result["role_url"] == "https://jobs.example.com/123"
-        assert result["differentiators"] == "Graph RAG, Neo4j"
-        assert result["is_ai_native"] is True
+        assert result["differentiators"] == "Graph RAG | Neo4j"
+        assert result["created_at"] == "2026-03-05"
         assert result["_notion_page_id"] == "abc-123"
         assert result["_notion_updated"] == "2026-03-05T10:00:00.000Z"
 
@@ -273,6 +277,7 @@ class TestNotionToDictRoundTrip:
                 "Stage": {"type": "status", "status": None},
                 "Position": {"type": "rich_text", "rich_text": []},
                 "Differentiators": {"type": "multi_select", "multi_select": []},
+                "Applied Date": {"type": "date", "date": None},
             },
         }
 
@@ -284,6 +289,7 @@ class TestNotionToDictRoundTrip:
         assert result["stage"] == ""
         assert result["role"] == ""
         assert result["differentiators"] == ""
+        assert result["created_at"] is None
 
 
 # ===========================================================================
@@ -416,7 +422,12 @@ class TestNotionCRM:
 
     @pytest.mark.asyncio
     async def test_push_all(self, crm, sample_valid_company, sample_skeleton_company):
-        with patch.object(crm, "sync_company", new_callable=AsyncMock) as mock_sync:
+        with (
+            patch.object(
+                crm, "get_all_page_ids", new_callable=AsyncMock, return_value={}
+            ),
+            patch.object(crm, "sync_company", new_callable=AsyncMock) as mock_sync,
+        ):
             mock_sync.side_effect = ["pid-1", "pid-2"]
             ids = await crm.push_all([sample_valid_company, sample_skeleton_company])
 
@@ -443,9 +454,9 @@ class TestNewFieldsInFieldMap:
         assert notion_type == "url"
 
     def test_hm_linkedin_in_field_map(self):
-        """Hiring Manager LinkedIn field must exist in _FIELD_MAP with url type."""
-        assert "Hiring Manager LinkedIn" in NotionSchemas._FIELD_MAP
-        orm_field, notion_type = NotionSchemas._FIELD_MAP["Hiring Manager LinkedIn"]
+        """HM LinkedIn field must exist in _FIELD_MAP with url type."""
+        assert "HM LinkedIn" in NotionSchemas._FIELD_MAP
+        orm_field, notion_type = NotionSchemas._FIELD_MAP["HM LinkedIn"]
         assert orm_field == "hiring_manager_linkedin"
         assert notion_type == "url"
 
@@ -480,8 +491,8 @@ class TestNewFieldPropertyFormats:
             hiring_manager_linkedin="https://linkedin.com/in/janedoe",
         )
         props = NotionSchemas.orm_to_notion(company)
-        assert "Hiring Manager LinkedIn" in props
-        assert props["Hiring Manager LinkedIn"] == {"url": "https://linkedin.com/in/janedoe"}
+        assert "HM LinkedIn" in props
+        assert props["HM LinkedIn"] == {"url": "https://linkedin.com/in/janedoe"}
 
     def test_why_fit_produces_rich_text_format(self):
         company = CompanyORM(
@@ -529,6 +540,468 @@ class TestEmptyFieldsExcluded:
 
 
 # ===========================================================================
+# Expanded field map tests (10 new fields added in C1 Wave 1)
+# ===========================================================================
+
+
+class TestExpandedFieldMapPresence:
+    """Verify all 10 new fields exist in _FIELD_MAP with correct types."""
+
+    @pytest.mark.parametrize(
+        "notion_name, orm_field, notion_type",
+        [
+            ("ATS Platform", "ats_platform", "select"),
+            ("ATS Slug", "ats_slug", "rich_text"),
+            ("Employees", "employees_range", "rich_text"),
+            ("Funding Amount", "funding_amount", "rich_text"),
+            ("Data Completeness", "data_completeness", "number"),
+            ("Validation", "validation_result", "select"),
+            ("Tech Overlap", "score_tech_overlap", "number"),
+            ("Criteria Score", "score_criteria", "number"),
+            ("Salary Score", "score_salary", "number"),
+            ("H1B Score", "score_h1b", "number"),
+        ],
+    )
+    def test_field_in_map(self, notion_name, orm_field, notion_type):
+        assert notion_name in NotionSchemas._FIELD_MAP
+        actual_field, actual_type = NotionSchemas._FIELD_MAP[notion_name]
+        assert actual_field == orm_field
+        assert actual_type == notion_type
+
+    def test_field_map_total_count(self):
+        """Field map should now have 27 entries (17 original + 10 new)."""
+        assert len(NotionSchemas._FIELD_MAP) == 28
+
+
+class TestExpandedFieldOrmToNotion:
+    """Verify orm_to_notion produces correct Notion property format for each new field."""
+
+    def test_ats_platform_select(self):
+        company = CompanyORM(name="TestCo", ats_platform="Ashby")
+        props = NotionSchemas.orm_to_notion(company)
+        assert props["ATS Platform"] == {"select": {"name": "Ashby"}}
+
+    def test_ats_slug_rich_text(self):
+        company = CompanyORM(name="TestCo", ats_slug="testco-ai")
+        props = NotionSchemas.orm_to_notion(company)
+        assert props["ATS Slug"] == {
+            "rich_text": [{"text": {"content": "testco-ai"}}]
+        }
+
+    def test_employees_range_rich_text(self):
+        company = CompanyORM(name="TestCo", employees_range="51-200")
+        props = NotionSchemas.orm_to_notion(company)
+        assert props["Employees"] == {
+            "rich_text": [{"text": {"content": "51-200"}}]
+        }
+
+    def test_funding_amount_rich_text(self):
+        company = CompanyORM(name="TestCo", funding_amount="$25M Series B")
+        props = NotionSchemas.orm_to_notion(company)
+        assert props["Funding Amount"] == {
+            "rich_text": [{"text": {"content": "$25M Series B"}}]
+        }
+
+    def test_data_completeness_number(self):
+        company = CompanyORM(name="TestCo", data_completeness=0.85)
+        props = NotionSchemas.orm_to_notion(company)
+        assert props["Data Completeness"] == {"number": 0.85}
+
+    def test_validation_result_select(self):
+        company = CompanyORM(name="TestCo", validation_result="PASS")
+        props = NotionSchemas.orm_to_notion(company)
+        assert props["Validation"] == {"select": {"name": "PASS"}}
+
+    def test_tech_overlap_number(self):
+        company = CompanyORM(name="TestCo", score_tech_overlap=7.5)
+        props = NotionSchemas.orm_to_notion(company)
+        assert props["Tech Overlap"] == {"number": 7.5}
+
+    def test_criteria_score_number(self):
+        company = CompanyORM(name="TestCo", score_criteria=12.0)
+        props = NotionSchemas.orm_to_notion(company)
+        assert props["Criteria Score"] == {"number": 12.0}
+
+    def test_salary_score_number(self):
+        company = CompanyORM(name="TestCo", score_salary=8.0)
+        props = NotionSchemas.orm_to_notion(company)
+        assert props["Salary Score"] == {"number": 8.0}
+
+    def test_h1b_score_number(self):
+        company = CompanyORM(name="TestCo", score_h1b=15.0)
+        props = NotionSchemas.orm_to_notion(company)
+        assert props["H1B Score"] == {"number": 15.0}
+
+
+class TestExpandedFieldNotionToDict:
+    """Verify notion_to_dict parses Notion properties back to correct ORM values."""
+
+    def _make_page(self, **props):
+        """Helper to build a minimal Notion page dict with custom properties."""
+        properties = {
+            "Company": {"type": "title", "title": [{"plain_text": "TestCo"}]},
+        }
+        properties.update(props)
+        return {
+            "id": "test-page-id",
+            "last_edited_time": "2026-03-10T10:00:00.000Z",
+            "properties": properties,
+        }
+
+    def test_ats_platform_from_notion(self):
+        page = self._make_page(
+            **{"ATS Platform": {"type": "select", "select": {"name": "Greenhouse"}}}
+        )
+        result = NotionSchemas.notion_to_dict(page)
+        assert result["ats_platform"] == "Greenhouse"
+
+    def test_ats_slug_from_notion(self):
+        page = self._make_page(
+            **{"ATS Slug": {"type": "rich_text", "rich_text": [{"plain_text": "testco-ai"}]}}
+        )
+        result = NotionSchemas.notion_to_dict(page)
+        assert result["ats_slug"] == "testco-ai"
+
+    def test_employees_range_from_notion(self):
+        page = self._make_page(
+            **{"Employees": {"type": "rich_text", "rich_text": [{"plain_text": "51-200"}]}}
+        )
+        result = NotionSchemas.notion_to_dict(page)
+        assert result["employees_range"] == "51-200"
+
+    def test_funding_amount_from_notion(self):
+        page = self._make_page(
+            **{"Funding Amount": {"type": "rich_text", "rich_text": [{"plain_text": "$25M Series B"}]}}
+        )
+        result = NotionSchemas.notion_to_dict(page)
+        assert result["funding_amount"] == "$25M Series B"
+
+    def test_data_completeness_from_notion(self):
+        page = self._make_page(
+            **{"Data Completeness": {"type": "number", "number": 0.85}}
+        )
+        result = NotionSchemas.notion_to_dict(page)
+        assert result["data_completeness"] == 0.85
+
+    def test_validation_result_from_notion(self):
+        page = self._make_page(
+            **{"Validation": {"type": "select", "select": {"name": "FAIL"}}}
+        )
+        result = NotionSchemas.notion_to_dict(page)
+        assert result["validation_result"] == "FAIL"
+
+    def test_tech_overlap_from_notion(self):
+        page = self._make_page(
+            **{"Tech Overlap": {"type": "number", "number": 7.5}}
+        )
+        result = NotionSchemas.notion_to_dict(page)
+        assert result["score_tech_overlap"] == 7.5
+
+    def test_criteria_score_from_notion(self):
+        page = self._make_page(
+            **{"Criteria Score": {"type": "number", "number": 12.0}}
+        )
+        result = NotionSchemas.notion_to_dict(page)
+        assert result["score_criteria"] == 12.0
+
+    def test_salary_score_from_notion(self):
+        page = self._make_page(
+            **{"Salary Score": {"type": "number", "number": 8.0}}
+        )
+        result = NotionSchemas.notion_to_dict(page)
+        assert result["score_salary"] == 8.0
+
+    def test_h1b_score_from_notion(self):
+        page = self._make_page(
+            **{"H1B Score": {"type": "number", "number": 15.0}}
+        )
+        result = NotionSchemas.notion_to_dict(page)
+        assert result["score_h1b"] == 15.0
+
+
+class TestExpandedFieldRoundTrip:
+    """Full round-trip: ORM -> Notion props -> Notion page dict -> ORM dict."""
+
+    def test_round_trip_all_new_fields(self):
+        """Set all 10 new fields, convert to Notion, convert back, verify values match."""
+        company = CompanyORM(
+            name="RoundTrip Co",
+            ats_platform="Lever",
+            ats_slug="roundtrip-co",
+            employees_range="201-500",
+            funding_amount="$50M Series C",
+            data_completeness=0.92,
+            validation_result="PASS",
+            score_tech_overlap=9.0,
+            score_criteria=14.0,
+            score_salary=7.5,
+            score_h1b=15.0,
+        )
+
+        # ORM -> Notion properties
+        notion_props = NotionSchemas.orm_to_notion(company)
+
+        # Build a fake Notion page from these properties, reformatting to
+        # match what Notion API would return (add "type" keys and use
+        # "plain_text" instead of "text"/"content" for rich_text)
+        page_properties = {}
+        for notion_name, prop_value in notion_props.items():
+            _, notion_type = NotionSchemas._FIELD_MAP[notion_name]
+            page_prop = {"type": notion_type}
+            if notion_type == "title":
+                page_prop["title"] = [
+                    {"plain_text": prop_value["title"][0]["text"]["content"]}
+                ]
+            elif notion_type == "rich_text":
+                page_prop["rich_text"] = [
+                    {"plain_text": prop_value["rich_text"][0]["text"]["content"]}
+                ]
+            elif notion_type == "number":
+                page_prop["number"] = prop_value["number"]
+            elif notion_type == "select":
+                page_prop["select"] = prop_value["select"]
+            elif notion_type == "status":
+                page_prop["status"] = prop_value["status"]
+            elif notion_type == "url":
+                page_prop["url"] = prop_value["url"]
+            elif notion_type == "multi_select":
+                page_prop["multi_select"] = prop_value["multi_select"]
+            elif notion_type == "date":
+                page_prop["date"] = prop_value["date"]
+            page_properties[notion_name] = page_prop
+
+        page = {
+            "id": "round-trip-page",
+            "last_edited_time": "2026-03-10T10:00:00.000Z",
+            "properties": page_properties,
+        }
+
+        # Notion page -> ORM dict
+        result = NotionSchemas.notion_to_dict(page)
+
+        # Verify all 10 new fields round-trip correctly
+        assert result["ats_platform"] == "Lever"
+        assert result["ats_slug"] == "roundtrip-co"
+        assert result["employees_range"] == "201-500"
+        assert result["funding_amount"] == "$50M Series C"
+        assert result["data_completeness"] == 0.92
+        assert result["validation_result"] == "PASS"
+        assert result["score_tech_overlap"] == 9.0
+        assert result["score_criteria"] == 14.0
+        assert result["score_salary"] == 7.5
+        assert result["score_h1b"] == 15.0
+
+
+class TestExpandedFieldEmptyExclusion:
+    """Empty/None new fields should be excluded from orm_to_notion output."""
+
+    def test_empty_ats_platform_excluded(self):
+        company = CompanyORM(name="TestCo", ats_platform="")
+        props = NotionSchemas.orm_to_notion(company)
+        assert "ATS Platform" not in props
+
+    def test_none_validation_result_excluded(self):
+        company = CompanyORM(name="TestCo", validation_result=None)
+        props = NotionSchemas.orm_to_notion(company)
+        assert "Validation" not in props
+
+    def test_empty_ats_slug_excluded(self):
+        company = CompanyORM(name="TestCo", ats_slug="")
+        props = NotionSchemas.orm_to_notion(company)
+        assert "ATS Slug" not in props
+
+    def test_empty_employees_range_excluded(self):
+        company = CompanyORM(name="TestCo", employees_range="")
+        props = NotionSchemas.orm_to_notion(company)
+        assert "Employees" not in props
+
+    def test_empty_funding_amount_excluded(self):
+        company = CompanyORM(name="TestCo", funding_amount="")
+        props = NotionSchemas.orm_to_notion(company)
+        assert "Funding Amount" not in props
+
+    def test_zero_score_fields_included(self):
+        """Score fields with value 0.0 should still be included (not empty)."""
+        company = CompanyORM(
+            name="TestCo",
+            score_h1b=0.0,
+            score_criteria=0.0,
+            score_tech_overlap=0.0,
+            score_salary=0.0,
+            data_completeness=0.0,
+        )
+        props = NotionSchemas.orm_to_notion(company)
+        assert "H1B Score" in props
+        assert "Criteria Score" in props
+        assert "Tech Overlap" in props
+        assert "Salary Score" in props
+        assert "Data Completeness" in props
+
+
+# ===========================================================================
+# Batch page ID lookup tests (W1-D optimisation)
+# ===========================================================================
+
+
+class TestBatchPageIdLookups:
+    """Verify push_all and push_all_parallel pre-fetch page IDs in one batch."""
+
+    @pytest.mark.asyncio
+    async def test_push_all_calls_get_all_page_ids_once(self, crm, companies):
+        """push_all should call get_all_page_ids exactly once, not find_page_by_name per company."""
+        cache = {"Company A": "pid-a", "Company B": "pid-b"}
+        with (
+            patch.object(
+                crm, "get_all_page_ids", new_callable=AsyncMock, return_value=cache
+            ) as mock_get_ids,
+            patch.object(crm, "sync_company", new_callable=AsyncMock) as mock_sync,
+            patch.object(crm, "find_page_by_name", new_callable=AsyncMock) as mock_find,
+        ):
+            mock_sync.side_effect = ["pid-a", "pid-b", "pid-c"]
+            await crm.push_all(companies)
+
+        mock_get_ids.assert_called_once()
+        mock_find.assert_not_called()
+        assert mock_sync.call_count == 3
+        # Verify cache was passed to each sync_company call
+        for call in mock_sync.call_args_list:
+            assert call.kwargs.get("page_id_cache") is cache
+
+    @pytest.mark.asyncio
+    async def test_sync_company_uses_cache_when_provided(self, crm):
+        """sync_company should use cached page_id and skip find_page_by_name."""
+        company = CompanyORM(name="CachedCo", updated_at=datetime(2026, 3, 5, 15, 0, 0))
+        cache = {"CachedCo": "cached-page-id"}
+
+        with (
+            patch.object(crm, "_request", new_callable=AsyncMock) as mock_req,
+            patch.object(crm, "find_page_by_name", new_callable=AsyncMock) as mock_find,
+        ):
+            # First _request: GET page (timestamp check), second: PATCH update
+            mock_req.side_effect = [
+                {"last_edited_time": "2026-03-04T10:00:00.000Z"},
+                {},
+            ]
+            page_id = await crm.sync_company(company, page_id_cache=cache)
+
+        assert page_id == "cached-page-id"
+        mock_find.assert_not_called()
+        # Should have made GET + PATCH requests (no query for find_page_by_name)
+        assert mock_req.call_count == 2
+
+    @pytest.mark.asyncio
+    async def test_sync_company_cache_miss_falls_back_to_create(self, crm):
+        """Cache miss (name not in cache) should create a new page, not call find_page_by_name."""
+        company = CompanyORM(name="NewCo")
+        cache = {"OtherCo": "other-page-id"}  # NewCo not in cache
+
+        with (
+            patch.object(crm, "_request", new_callable=AsyncMock) as mock_req,
+            patch.object(crm, "find_page_by_name", new_callable=AsyncMock) as mock_find,
+        ):
+            mock_req.return_value = {"id": "new-page-id"}
+            page_id = await crm.sync_company(company, page_id_cache=cache)
+
+        assert page_id == "new-page-id"
+        mock_find.assert_not_called()
+        # Should create (POST) since cache miss means page doesn't exist
+        assert mock_req.call_count == 1
+        assert mock_req.call_args[0][0] == "POST"
+
+    @pytest.mark.asyncio
+    async def test_sync_company_no_cache_calls_find_page_by_name(self, crm):
+        """Without cache, sync_company falls back to find_page_by_name."""
+        company = CompanyORM(name="FallbackCo")
+
+        with (
+            patch.object(crm, "_request", new_callable=AsyncMock) as mock_req,
+            patch.object(
+                crm, "find_page_by_name", new_callable=AsyncMock, return_value=None
+            ) as mock_find,
+        ):
+            mock_req.return_value = {"id": "new-page-id"}
+            page_id = await crm.sync_company(company)
+
+        mock_find.assert_called_once_with("FallbackCo")
+        assert page_id == "new-page-id"
+
+    @pytest.mark.asyncio
+    async def test_push_all_parallel_uses_cache(self, crm, companies):
+        """push_all_parallel should call get_all_page_ids once and pass cache to sync_company."""
+        cache = {"Company A": "pid-a", "Company B": "pid-b"}
+        with (
+            patch.object(
+                crm, "get_all_page_ids", new_callable=AsyncMock, return_value=cache
+            ) as mock_get_ids,
+            patch.object(crm, "sync_company", new_callable=AsyncMock) as mock_sync,
+            patch.object(crm, "find_page_by_name", new_callable=AsyncMock) as mock_find,
+        ):
+            mock_sync.side_effect = ["pid-a", "pid-b", "pid-c"]
+            results = await crm.push_all_parallel(companies, max_concurrent=3)
+
+        mock_get_ids.assert_called_once()
+        mock_find.assert_not_called()
+        assert len(results) == 3
+        # Verify cache was passed to each sync_company call
+        for call in mock_sync.call_args_list:
+            assert call.kwargs.get("page_id_cache") is cache
+
+    @pytest.mark.asyncio
+    async def test_empty_cache_works_correctly(self, crm):
+        """An empty cache means all companies are new -- should create pages."""
+        company = CompanyORM(name="BrandNewCo")
+        cache: dict[str, str] = {}
+
+        with patch.object(crm, "_request", new_callable=AsyncMock) as mock_req:
+            mock_req.return_value = {"id": "brand-new-id"}
+            page_id = await crm.sync_company(company, page_id_cache=cache)
+
+        assert page_id == "brand-new-id"
+        assert mock_req.call_count == 1
+        assert mock_req.call_args[0][0] == "POST"
+
+    @pytest.mark.asyncio
+    async def test_push_all_parallel_empty_companies_skips_get_all_page_ids(self, crm):
+        """push_all_parallel with empty list still calls get_all_page_ids but returns []."""
+        with patch.object(
+            crm, "get_all_page_ids", new_callable=AsyncMock, return_value={}
+        ) as mock_get_ids:
+            results = await crm.push_all_parallel([], max_concurrent=3)
+
+        mock_get_ids.assert_called_once()
+        assert results == []
+
+
+class TestExpandedFieldSyncFieldsDerivation:
+    """Verify new fields are included in _SYNC_FIELDS (bidirectional sync)."""
+
+    def test_new_fields_in_sync_fields(self):
+        from src.integrations.notion_bidirectional import _SYNC_FIELDS
+
+        new_orm_fields = [
+            "ats_platform",
+            "ats_slug",
+            "employees_range",
+            "funding_amount",
+            "data_completeness",
+            "validation_result",
+            "score_tech_overlap",
+            "score_criteria",
+            "score_salary",
+            "score_h1b",
+        ]
+        for field in new_orm_fields:
+            assert field in _SYNC_FIELDS, f"{field} missing from _SYNC_FIELDS"
+
+    def test_non_sync_fields_still_excluded(self):
+        from src.integrations.notion_bidirectional import _SYNC_FIELDS
+
+        assert "name" not in _SYNC_FIELDS
+        assert "created_at" not in _SYNC_FIELDS
+        assert "updated_at" not in _SYNC_FIELDS
+
+
+# ===========================================================================
 # Dry-run tests (from test_notion_sync_extended.py)
 # ===========================================================================
 
@@ -568,7 +1041,7 @@ class TestDryRun:
         )
         result = asyncio.run(crm.sync_company(company, dry_run=True))
         assert "LinkedIn URL" in result
-        assert "Hiring Manager LinkedIn" in result
+        assert "HM LinkedIn" in result
         assert "Why Fit" in result
         assert "Best Stats" in result
 
@@ -596,7 +1069,12 @@ class TestPushAllParallel:
 
     @pytest.mark.asyncio
     async def test_push_all_parallel_calls_push_for_each(self, crm, companies):
-        with patch.object(crm, "sync_company", new_callable=AsyncMock) as mock_sync:
+        with (
+            patch.object(
+                crm, "get_all_page_ids", new_callable=AsyncMock, return_value={}
+            ),
+            patch.object(crm, "sync_company", new_callable=AsyncMock) as mock_sync,
+        ):
             mock_sync.side_effect = ["page-a", "page-b", "page-c"]
             results = await crm.push_all_parallel(companies, max_concurrent=3)
 
@@ -611,7 +1089,7 @@ class TestPushAllParallel:
 
         original_sync = AsyncMock(side_effect=["p1", "p2", "p3"])
 
-        async def tracking_sync(company):
+        async def tracking_sync(company, **kwargs):
             nonlocal active_count, max_observed
             active_count += 1
             max_observed = max(max_observed, active_count)
@@ -620,7 +1098,12 @@ class TestPushAllParallel:
             active_count -= 1
             return result
 
-        with patch.object(crm, "sync_company", side_effect=tracking_sync):
+        with (
+            patch.object(
+                crm, "get_all_page_ids", new_callable=AsyncMock, return_value={}
+            ),
+            patch.object(crm, "sync_company", side_effect=tracking_sync),
+        ):
             results = await crm.push_all_parallel(
                 companies, max_concurrent=max_concurrent
             )
@@ -630,7 +1113,12 @@ class TestPushAllParallel:
 
     @pytest.mark.asyncio
     async def test_push_all_parallel_handles_errors_gracefully(self, crm, companies):
-        with patch.object(crm, "sync_company", new_callable=AsyncMock) as mock_sync:
+        with (
+            patch.object(
+                crm, "get_all_page_ids", new_callable=AsyncMock, return_value={}
+            ),
+            patch.object(crm, "sync_company", new_callable=AsyncMock) as mock_sync,
+        ):
             mock_sync.side_effect = [
                 "page-a",
                 Exception("API error"),
@@ -644,7 +1132,12 @@ class TestPushAllParallel:
 
     @pytest.mark.asyncio
     async def test_push_all_parallel_returns_page_ids(self, crm, companies):
-        with patch.object(crm, "sync_company", new_callable=AsyncMock) as mock_sync:
+        with (
+            patch.object(
+                crm, "get_all_page_ids", new_callable=AsyncMock, return_value={}
+            ),
+            patch.object(crm, "sync_company", new_callable=AsyncMock) as mock_sync,
+        ):
             mock_sync.side_effect = ["id-1", "id-2", "id-3"]
             results = await crm.push_all_parallel(companies)
 
@@ -654,7 +1147,10 @@ class TestPushAllParallel:
 
     @pytest.mark.asyncio
     async def test_push_all_parallel_empty_list(self, crm):
-        results = await crm.push_all_parallel([], max_concurrent=3)
+        with patch.object(
+            crm, "get_all_page_ids", new_callable=AsyncMock, return_value={}
+        ):
+            results = await crm.push_all_parallel([], max_concurrent=3)
         assert results == []
 
 
