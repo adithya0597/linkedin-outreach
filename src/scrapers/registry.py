@@ -57,13 +57,17 @@ def build_default_registry() -> PortalRegistry:
       Tier C — Medium Risk (Patchright): Jobright, TrueUp
       Tier D — New Sources: JobSpy, HN Hiring
     """
-    from src.scrapers.algolia_scraper import WTTJAlgoliaScraper, YCAlgoliaScraper
     from src.scrapers.ats_scraper import AshbyScraper, GreenhouseScraper
     from src.scrapers.hn_hiring_scraper import HNHiringScraper
+    from src.scrapers.homepage_first_scraper import (
+        HiringCafeHomepageFirstScraper,
+        StartupJobsHomepageFirstScraper,
+        WellfoundHomepageFirstScraper,
+        WTTJHomepageFirstScraper,
+        YCHomepageFirstScraper,
+    )
     from src.scrapers.httpx_scraper import (
         AIJobsScraper,
-        HiringCafeHttpxScraper,
-        StartupJobsScraper,
         TopStartupsScraper,
     )
     from src.scrapers.jobspy_scraper import JobSpyScraper
@@ -73,17 +77,17 @@ def build_default_registry() -> PortalRegistry:
         JobrightPatchrightScraper,
         TrueUpPatchrightScraper,
     )
-    from src.scrapers.wellfound_nextdata import WellfoundNextDataScraper
 
     # Shared rate limiter with per-portal rates
     rl = RateLimiter(default_tokens_per_second=1.0)
     rl.configure("LinkedIn", 0.2)                  # 1 req / 5s (anti-bot)
-    rl.configure("Wellfound", 0.5)                 # httpx __NEXT_DATA__
+    rl.configure("Wellfound", 0.3)                 # browser-based homepage-first
     rl.configure("Jobright AI", 0.5)               # Patchright stealth
     rl.configure("TrueUp", 0.5)                    # Patchright stealth
-    rl.configure("Hiring Cafe", 1.0)               # httpx JSON API
-    rl.configure("Work at a Startup (YC)", 1.0)    # Algolia API
-    rl.configure("Welcome to the Jungle", 1.0)     # Algolia API
+    rl.configure("Hiring Cafe", 0.3)               # browser-based homepage-first
+    rl.configure("Work at a Startup (YC)", 0.3)    # browser-based homepage-first
+    rl.configure("Welcome to the Jungle", 0.3)     # browser-based homepage-first
+    rl.configure("startup.jobs", 0.3)              # browser-based homepage-first
     rl.configure("Built In", 1.0)                  # MCP Playwright
     rl.configure("Ashby", 2.0)                     # ATS API
     rl.configure("Greenhouse", 2.0)                # ATS API
@@ -93,14 +97,15 @@ def build_default_registry() -> PortalRegistry:
         # ── Tier S: Zero Risk (APIs) ──────────────────────────────
         ("ashby", AshbyScraper(rate_limiter=rl)),
         ("greenhouse", GreenhouseScraper(rate_limiter=rl)),
-        ("hiring_cafe", HiringCafeHttpxScraper(rate_limiter=rl)),
         # ── Tier A: Low Risk (httpx, no browser) ─────────────────
-        ("wellfound", WellfoundNextDataScraper(rate_limiter=rl)),
-        ("yc", YCAlgoliaScraper(rate_limiter=rl)),
-        ("wttj", WTTJAlgoliaScraper(rate_limiter=rl)),
-        ("startup_jobs", StartupJobsScraper(rate_limiter=rl)),
         ("top_startups", TopStartupsScraper(rate_limiter=rl)),
         ("ai_jobs", AIJobsScraper(rate_limiter=rl)),
+        # ── Tier A+: Homepage-first (Patchright browser) ─────────
+        ("wellfound", WellfoundHomepageFirstScraper(rate_limiter=rl)),
+        ("yc", YCHomepageFirstScraper(rate_limiter=rl)),
+        ("wttj", WTTJHomepageFirstScraper(rate_limiter=rl)),
+        ("startup_jobs", StartupJobsHomepageFirstScraper(rate_limiter=rl)),
+        ("hiring_cafe", HiringCafeHomepageFirstScraper(rate_limiter=rl)),
         # ── Tier B: MCP Playwright (interactive, logged-in) ──────
         ("linkedin", MCPPlaywrightScraper(
             SourcePortal.LINKEDIN, skill_name="scan-linkedin", rate_limiter=rl,

@@ -119,17 +119,20 @@ def test_registry_get_by_tier():
 def test_registry_correct_scraper_type():
     registry = build_default_registry()
 
-    from src.scrapers.httpx_scraper import HttpxScraper
+    from src.scrapers.homepage_first_scraper import (
+        StartupJobsHomepageFirstScraper,
+        YCHomepageFirstScraper,
+    )
     from src.scrapers.mcp_scraper import MCPPlaywrightScraper
 
     linkedin = registry.get_scraper("linkedin")
     assert isinstance(linkedin, MCPPlaywrightScraper)
 
     startup_jobs = registry.get_scraper("startup_jobs")
-    assert isinstance(startup_jobs, HttpxScraper)
+    assert isinstance(startup_jobs, StartupJobsHomepageFirstScraper)
 
     yc = registry.get_scraper("yc")
-    assert isinstance(yc, HttpxScraper)  # AlgoliaBaseScraper extends HttpxScraper
+    assert isinstance(yc, YCHomepageFirstScraper)
 
 
 # --- H1B filter tests ---
@@ -137,9 +140,9 @@ def test_registry_correct_scraper_type():
 
 def test_h1b_filter_tier3_auto_passes():
     """Tier 3 (startup portals) should auto-pass all postings."""
-    from src.scrapers.wellfound_nextdata import WellfoundNextDataScraper
+    from src.scrapers.homepage_first_scraper import WellfoundHomepageFirstScraper
 
-    scraper = WellfoundNextDataScraper()
+    scraper = WellfoundHomepageFirstScraper()
     assert scraper.tier == PortalTier.TIER_3
 
     posting = JobPosting(
