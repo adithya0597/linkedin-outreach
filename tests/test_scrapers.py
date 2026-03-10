@@ -100,7 +100,7 @@ def test_registry_get_missing_raises():
 def test_registry_get_all():
     registry = build_default_registry()
     all_scrapers = registry.get_all_scrapers()
-    assert len(all_scrapers) == 18  # 4-tier architecture: S(4) + A(6) + B(4) + C(2) + D(2)
+    assert len(all_scrapers) == 17  # 4-tier architecture: S(4) + A(6) + B(3) + C(2) + D(2) (Lever removed)
 
 
 def test_registry_get_by_tier():
@@ -113,7 +113,7 @@ def test_registry_get_by_tier():
     assert len(tier_3) == 6  # wellfound, yc, startup_jobs, hiring_cafe, top_startups, hn_hiring
 
     tier_2 = registry.get_scrapers_by_tier(2)
-    assert len(tier_2) == 10  # ashby, greenhouse, lever, wttj, ai_jobs, builtin, jobboard_ai, jobright, trueup, jobspy
+    assert len(tier_2) == 9  # ashby, greenhouse, wttj, ai_jobs, builtin, jobboard_ai, jobright, trueup, jobspy (Lever removed)
 
 
 def test_registry_correct_scraper_type():
@@ -198,5 +198,5 @@ def test_healthy_scrapers_exclude_unhealthy():
     assert "Greenhouse" in healthy_names
     assert "Wellfound" in healthy_names
     assert "AI Jobs" in healthy_names
-    # Total healthy count: 17 (all except JobSpy if not installed) or 18 if installed
-    assert len(healthy) >= 17
+    # Total healthy count: 16 (all except JobSpy if not installed) or 17 if installed (Lever removed)
+    assert len(healthy) >= 16

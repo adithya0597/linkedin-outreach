@@ -452,6 +452,6 @@ def test_registry_total_count():
 
     registry = build_default_registry()
     all_scrapers = registry.get_all_scrapers()
-    assert len(all_scrapers) == 18
+    assert len(all_scrapers) == 17  # Lever removed from registry
 
 
