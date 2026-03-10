@@ -2,9 +2,19 @@
 
 import asyncio
 import logging
+from dataclasses import dataclass
 
 from src.scrapers.base_scraper import ScrapeResult
 from src.scrapers.circuit_breaker import CircuitBreaker
+
+
+@dataclass
+class ScanResult:
+    """Legacy result type for backward compatibility with C3 tests."""
+    portal: str
+    entries: list
+    error: str | None = None
+    duration: float = 0.0
 
 logger = logging.getLogger(__name__)
 

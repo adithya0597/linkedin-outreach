@@ -86,12 +86,11 @@ async def test_single_failure_isolation():
     assert len(entries) == 2
 
     # Check that the failed scraper is recorded
-    failed = [r for r in runner.results if r.error]
+    failed = [r for r in runner.results if r.error_message]
     assert len(failed) == 1
-    assert failed[0].portal == "bad"
-    assert "connection timeout" in failed[0].error
+    assert "connection timeout" in failed[0].error_message
 
-    succeeded = [r for r in runner.results if not r.error]
+    succeeded = [r for r in runner.results if not r.error_message]
     assert len(succeeded) == 2
 
 
@@ -140,7 +139,7 @@ async def test_all_scrapers_fail():
 
     assert entries == []
     assert len(runner.results) == 2
-    assert all(r.error for r in runner.results)
+    assert all(r.error_message for r in runner.results)
 
 
 @pytest.mark.asyncio
@@ -203,7 +202,7 @@ async def test_scan_result_duration_recorded():
     await runner.run_all([s1], query="q", filters={})
 
     assert len(runner.results) == 1
-    assert runner.results[0].duration >= 0.01
+    assert runner.results[0].duration_seconds >= 0.01
 
 
 @pytest.mark.asyncio

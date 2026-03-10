@@ -84,7 +84,7 @@ class TestStaleCleanup:
         # Create a fresh dir
         tmp = tempfile.mkdtemp(prefix="patchright_")
 
-        cleaned = cleanup_stale_temp_profiles(max_age_hours=1)
+        cleanup_stale_temp_profiles(max_age_hours=1)
 
         # Fresh dir should NOT be cleaned
         assert Path(tmp).exists()

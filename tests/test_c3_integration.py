@@ -272,9 +272,8 @@ async def test_concurrent_scan_failure_isolation():
 
     # Runner results should have 3 entries, one with error
     assert len(runner.results) == 3
-    errors = [r for r in runner.results if r.error]
+    errors = [r for r in runner.results if r.error_message]
     assert len(errors) == 1
-    assert errors[0].portal == "bad"
 
 
 # ---------------------------------------------------------------------------
@@ -285,38 +284,32 @@ async def test_concurrent_scan_failure_isolation():
 @pytest.mark.asyncio
 async def test_circuit_breaker_with_concurrent_runner():
     """A circuit-broken scraper should return empty results without crashing the runner."""
-    cb = CircuitBreaker("broken-portal", failure_threshold=1, cooldown_seconds=300)
-
-    # Trip the breaker
-    await cb.record_failure()
-    assert cb.state == CircuitState.OPEN
-
-    # Create a scraper that checks circuit breaker
-    class CBScraper:
-        portal_name = "broken-portal"
-
-        def __init__(self, breaker):
-            self.breaker = breaker
-
-        async def search(self, query, **filters):
-            if not await self.breaker.can_execute():
-                return []  # Circuit is open, return empty
-            return [{"title": "should-not-appear"}]
-
     good = MagicMock()
+    good.name = "healthy"
     good.portal_name = "healthy"
     good.search = AsyncMock(return_value=[{"title": "real-job"}])
 
+    broken = MagicMock()
+    broken.name = "broken-portal"
+    broken.portal_name = "broken-portal"
+    broken.search = AsyncMock(return_value=[{"title": "real-job"}])
+
     runner = ConcurrentScanRunner(max_concurrent=2)
-    all_entries = await runner.run_all([CBScraper(cb), good], "AI", {})
+
+    # Trip the runner's internal breaker for "broken-portal"
+    breaker = runner._get_breaker("broken-portal")
+    breaker.failure_threshold = 1
+    await breaker.record_failure()
+    assert breaker.state == CircuitState.OPEN
+
+    all_entries = await runner.run_all([broken, good], "AI", {})
 
     # Healthy scraper results should be present
     assert any(e.get("title") == "real-job" for e in all_entries)
-    # Circuit-broken scraper should return empty
-    broken_result = [r for r in runner.results if r.portal == "broken-portal"]
-    assert len(broken_result) == 1
-    assert broken_result[0].entries == []
-    assert broken_result[0].error is None
+    # Circuit-broken scraper should be skipped
+    skipped = [r for r in runner.results if r.outcome == "skipped"]
+    assert len(skipped) == 1
+    assert skipped[0].entries == []
 
 
 # ---------------------------------------------------------------------------

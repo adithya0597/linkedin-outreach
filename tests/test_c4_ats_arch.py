@@ -12,9 +12,9 @@ from src.scrapers.ats_scraper import (
     GreenhouseScraper,
     _load_slugs_from_config,
 )
-from src.scrapers.base_scraper import BaseScraper
+from src.scrapers.base_scraper import BaseScraper, ScrapeResult
 from src.scrapers.circuit_breaker import CircuitBreaker, CircuitState
-from src.scrapers.concurrent_runner import SCRAPER_TIMEOUT, ConcurrentScanRunner, ScanResult
+from src.scrapers.concurrent_runner import SCRAPER_TIMEOUT, ConcurrentScanRunner
 from src.scrapers.hn_hiring_scraper import HNHiringScraper
 
 
@@ -107,13 +107,13 @@ class TestConcurrentRunnerCircuitBreaker:
         assert runner.results[0].outcome == "skipped"
 
 
-class TestScanResult:
-    def test_scan_result_default_outcome(self):
-        r = ScanResult(portal="test", entries=[])
+class TestScrapeResult:
+    def test_scrape_result_default_outcome(self):
+        r = ScrapeResult(entries=[])
         assert r.outcome == "success"
 
-    def test_scan_result_with_error(self):
-        r = ScanResult(portal="test", entries=[], error="boom", outcome="error")
+    def test_scrape_result_with_error(self):
+        r = ScrapeResult(entries=[], error_message="boom", outcome="error")
         assert r.outcome == "error"
 
 
