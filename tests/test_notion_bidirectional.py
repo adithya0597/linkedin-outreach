@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from datetime import datetime, timedelta
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, call, patch
 
 import pytest
 from sqlalchemy import create_engine
@@ -334,3 +334,213 @@ def test_handles_company_not_in_notion(sync, db_session):
     conflicts = sync.detect_conflicts(pulled)
     local_only_conflicts = [c for c in conflicts if c["company_name"] == "Local Only Corp"]
     assert len(local_only_conflicts) == 0
+
+
+# ---------------------------------------------------------------------------
+# N+1 Query Elimination Tests
+# ---------------------------------------------------------------------------
+
+
+def test_detect_conflicts_uses_single_bulk_query(sync, db_session):
+    """detect_conflicts should issue exactly 1 query to load all companies."""
+    # Insert several local companies
+    for i in range(5):
+        _add_local_company(db_session, f"Company {i}", tier="Tier 1")
+
+    pulled = [
+        _make_notion_record(f"Company {i}", updated="2026-03-05T14:00:00.000Z", tier="Tier 2")
+        for i in range(5)
+    ]
+
+    # Spy on session.query to count calls
+    original_query = db_session.query
+    query_calls = []
+
+    def tracking_query(*args, **kwargs):
+        query_calls.append(args)
+        return original_query(*args, **kwargs)
+
+    with patch.object(db_session, "query", side_effect=tracking_query):
+        conflicts = sync.detect_conflicts(pulled)
+
+    # Should be exactly 1 bulk query (CompanyORM), not 5 per-record queries
+    assert len(query_calls) == 1, (
+        f"Expected 1 bulk query, got {len(query_calls)} queries"
+    )
+    # All 5 companies should produce conflicts (tier differs)
+    assert len(conflicts) == 5
+
+
+def test_detect_conflicts_with_300_records(sync, db_session):
+    """detect_conflicts should handle 300 records efficiently with bulk loading."""
+    for i in range(300):
+        _add_local_company(db_session, f"Co-{i}", tier="Tier 1")
+
+    pulled = [
+        _make_notion_record(f"Co-{i}", updated="2026-03-05T14:00:00.000Z", tier="Tier 2")
+        for i in range(300)
+    ]
+
+    original_query = db_session.query
+    query_calls = []
+
+    def tracking_query(*args, **kwargs):
+        query_calls.append(args)
+        return original_query(*args, **kwargs)
+
+    with patch.object(db_session, "query", side_effect=tracking_query):
+        conflicts = sync.detect_conflicts(pulled)
+
+    # Still exactly 1 query regardless of record count
+    assert len(query_calls) == 1
+    assert len(conflicts) == 300
+
+
+def test_detect_conflicts_with_empty_pulled(sync, db_session):
+    """detect_conflicts with empty pulled list should issue 1 query and return empty."""
+    _add_local_company(db_session, "Existing Corp", tier="Tier 1")
+
+    original_query = db_session.query
+    query_calls = []
+
+    def tracking_query(*args, **kwargs):
+        query_calls.append(args)
+        return original_query(*args, **kwargs)
+
+    with patch.object(db_session, "query", side_effect=tracking_query):
+        conflicts = sync.detect_conflicts([])
+
+    assert len(query_calls) == 1  # bulk preload still runs
+    assert len(conflicts) == 0
+
+
+def test_upsert_new_companies_uses_bulk_lookup(sync, db_session):
+    """_upsert_new_companies should issue exactly 1 query to check existing names."""
+    _add_local_company(db_session, "Existing A")
+    _add_local_company(db_session, "Existing B")
+
+    pulled = [
+        _make_notion_record("Existing A"),
+        _make_notion_record("New Company X"),
+        _make_notion_record("New Company Y"),
+    ]
+
+    original_query = db_session.query
+    query_calls = []
+
+    def tracking_query(*args, **kwargs):
+        query_calls.append(args)
+        return original_query(*args, **kwargs)
+
+    with patch.object(db_session, "query", side_effect=tracking_query):
+        created = sync._upsert_new_companies(pulled)
+
+    # 1 bulk name query + commit (commit is not a query call)
+    assert len(query_calls) == 1, (
+        f"Expected 1 bulk query, got {len(query_calls)} queries"
+    )
+    assert created == 2
+
+    # Verify the new companies exist
+    assert db_session.query(CompanyORM).filter_by(name="New Company X").first() is not None
+    assert db_session.query(CompanyORM).filter_by(name="New Company Y").first() is not None
+
+
+def test_upsert_deduplicates_within_batch(sync, db_session):
+    """_upsert_new_companies should not create duplicates if the same name appears twice in pulled."""
+    pulled = [
+        _make_notion_record("Duplicate Corp", tier="Tier 1"),
+        _make_notion_record("Duplicate Corp", tier="Tier 2"),
+    ]
+
+    created = sync._upsert_new_companies(pulled)
+    assert created == 1
+
+    count = db_session.query(CompanyORM).filter_by(name="Duplicate Corp").count()
+    assert count == 1
+
+
+def test_merge_uses_bulk_query(sync, db_session):
+    """merge() should load all conflicted companies in one query, not per-company."""
+    for i in range(5):
+        _add_local_company(db_session, f"MergeCo {i}", tier="Tier 2")
+
+    conflicts = [
+        {
+            "company_name": f"MergeCo {i}",
+            "field": "tier",
+            "local_value": "Tier 2",
+            "notion_value": "Tier 1",
+            "local_updated": "2026-03-05T10:00:00",
+            "notion_updated": "2026-03-05T14:00:00",
+        }
+        for i in range(5)
+    ]
+
+    original_query = db_session.query
+    query_calls = []
+
+    def tracking_query(*args, **kwargs):
+        query_calls.append(args)
+        return original_query(*args, **kwargs)
+
+    with patch.object(db_session, "query", side_effect=tracking_query):
+        stats = sync.merge(conflicts, strategy=ConflictStrategy.NEWEST_WINS)
+
+    # 1 bulk query using IN clause, not 5 per-company queries
+    assert len(query_calls) == 1, (
+        f"Expected 1 bulk query, got {len(query_calls)} queries"
+    )
+    assert stats["merged"] == 5
+
+
+def test_conflict_detection_correctness_after_optimization(sync, db_session):
+    """Verify conflict detection logic is unchanged after the N+1 fix."""
+    _add_local_company(
+        db_session,
+        "Alpha",
+        updated_at=datetime(2026, 3, 5, 10, 0, 0),
+        tier="Tier 2",
+        stage="To apply",
+        h1b_status="Unknown",
+    )
+    _add_local_company(
+        db_session,
+        "Beta",
+        updated_at=datetime(2026, 3, 5, 10, 0, 0),
+        tier="Tier 1",
+    )
+
+    pulled = [
+        _make_notion_record(
+            "Alpha",
+            updated="2026-03-05T14:00:00.000Z",
+            tier="Tier 1",       # changed
+            stage="Applied",     # changed
+            h1b_status="Unknown",  # same
+        ),
+        _make_notion_record(
+            "Beta",
+            updated="2026-03-05T14:00:00.000Z",
+            tier="Tier 1",  # same
+        ),
+        _make_notion_record(
+            "Gamma",  # not in DB
+            updated="2026-03-05T14:00:00.000Z",
+            tier="Tier 3",
+        ),
+    ]
+
+    conflicts = sync.detect_conflicts(pulled)
+
+    # Alpha: tier + stage changed -> 2 conflicts; h1b_status same -> 0
+    # Beta: tier same -> 0
+    # Gamma: not in DB -> 0
+    alpha_conflicts = [c for c in conflicts if c["company_name"] == "Alpha"]
+    beta_conflicts = [c for c in conflicts if c["company_name"] == "Beta"]
+    gamma_conflicts = [c for c in conflicts if c["company_name"] == "Gamma"]
+
+    assert len(alpha_conflicts) == 2
+    assert {c["field"] for c in alpha_conflicts} == {"tier", "stage"}
+    assert len(beta_conflicts) == 0
+    assert len(gamma_conflicts) == 0

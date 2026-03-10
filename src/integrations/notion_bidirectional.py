@@ -2,8 +2,13 @@
 
 from __future__ import annotations
 
+import fcntl
+import os
+import time
+from contextlib import contextmanager
 from datetime import datetime
 from enum import Enum
+from pathlib import Path
 
 from loguru import logger
 from sqlalchemy.orm import Session
@@ -11,6 +16,56 @@ from sqlalchemy.orm import Session
 from src.db.orm import CompanyORM
 from src.integrations.notion_incremental import NotionSyncState
 from src.integrations.notion_sync import NotionCRM, NotionSchemas
+
+# Default lock file location
+_SYNC_LOCK_DIR = Path.home() / ".cache" / "lineked-outreach"
+_SYNC_LOCK_PATH = _SYNC_LOCK_DIR / "sync.lock"
+
+
+class SyncLockError(Exception):
+    """Raised when the sync lock cannot be acquired within the timeout."""
+
+
+@contextmanager
+def _sync_lock(lock_path: Path | None = None, timeout: float = 30.0):
+    """Acquire an exclusive file lock for the sync pipeline.
+
+    Uses ``fcntl.flock(LOCK_EX | LOCK_NB)`` with a polling loop so that
+    a descriptive ``SyncLockError`` is raised when the timeout elapses
+    instead of silently proceeding.
+
+    The lock is **always** released in the ``finally`` block, even when
+    the caller raises an exception.
+    """
+    if lock_path is None:
+        lock_path = _SYNC_LOCK_PATH
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    fd = os.open(str(lock_path), os.O_CREAT | os.O_RDWR)
+    acquired = False
+    try:
+        deadline = time.monotonic() + timeout
+        while True:
+            try:
+                fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                acquired = True
+                logger.debug("Sync lock acquired: {}", lock_path)
+                break
+            except (OSError, BlockingIOError):
+                if time.monotonic() >= deadline:
+                    os.close(fd)
+                    raise SyncLockError(
+                        f"Could not acquire sync lock at {lock_path} "
+                        f"within {timeout}s — another sync process may be running."
+                    )
+                time.sleep(0.1)
+        yield fd
+    finally:
+        if acquired:
+            try:
+                fcntl.flock(fd, fcntl.LOCK_UN)
+            except OSError:
+                pass
+            os.close(fd)
 
 
 class ConflictStrategy(str, Enum):
@@ -79,16 +134,15 @@ class NotionBidirectionalSync:
         """
         conflicts: list[dict] = []
 
+        # Bulk-load all local companies into a dict for O(1) lookups
+        all_companies = {c.name: c for c in self.session.query(CompanyORM).all()}
+
         for record in pulled:
             company_name = record.get("name")
             if not company_name:
                 continue
 
-            local: CompanyORM | None = (
-                self.session.query(CompanyORM)
-                .filter(CompanyORM.name == company_name)
-                .first()
-            )
+            local: CompanyORM | None = all_companies.get(company_name)
             if local is None:
                 # New company from Notion -- no conflict possible
                 continue
@@ -152,12 +206,17 @@ class NotionBidirectionalSync:
         for c in conflicts:
             by_company.setdefault(c["company_name"], []).append(c)
 
+        # Bulk-load companies involved in conflicts for O(1) lookups
+        company_names = list(by_company.keys())
+        company_map = {
+            c.name: c
+            for c in self.session.query(CompanyORM)
+            .filter(CompanyORM.name.in_(company_names))
+            .all()
+        }
+
         for company_name, field_conflicts in by_company.items():
-            local: CompanyORM | None = (
-                self.session.query(CompanyORM)
-                .filter(CompanyORM.name == company_name)
-                .first()
-            )
+            local: CompanyORM | None = company_map.get(company_name)
             if local is None:
                 continue
 
@@ -230,6 +289,7 @@ class NotionBidirectionalSync:
         self,
         strategy: str = ConflictStrategy.NEWEST_WINS,
         dry_run: bool = False,
+        lock_timeout: float = 30.0,
     ) -> dict:
         """End-to-end sync pipeline: pull -> detect conflicts -> merge -> push.
 
@@ -238,41 +298,47 @@ class NotionBidirectionalSync:
 
         When *dry_run* is True, conflicts are detected but NOT merged,
         and push counts records but does not actually push.
+
+        An exclusive file lock is held for the entire pipeline to prevent
+        concurrent sync processes from interleaving.  If the lock cannot
+        be acquired within *lock_timeout* seconds (default 30), a
+        ``SyncLockError`` is raised.
         """
-        # Use incremental pull if we have sync state, otherwise full pull
-        last_sync = self.sync_state.get_last_sync()
-        if last_sync is not None:
-            logger.info("Using incremental pull (since {})", last_sync)
-            pulled = await self.pull_incremental()
-        else:
-            pulled = await self.pull_updates()
+        with _sync_lock(timeout=lock_timeout):
+            # Use incremental pull if we have sync state, otherwise full pull
+            last_sync = self.sync_state.get_last_sync()
+            if last_sync is not None:
+                logger.info("Using incremental pull (since {})", last_sync)
+                pulled = await self.pull_incremental()
+            else:
+                pulled = await self.pull_updates()
 
-        # Upsert new companies that don't exist locally
-        new_count = self._upsert_new_companies(pulled, dry_run=dry_run)
+            # Upsert new companies that don't exist locally
+            new_count = self._upsert_new_companies(pulled, dry_run=dry_run)
 
-        conflicts = self.detect_conflicts(pulled)
+            conflicts = self.detect_conflicts(pulled)
 
-        merge_result: dict = {}
-        if not dry_run and conflicts:
-            merge_result = self.merge(conflicts, strategy=strategy)
+            merge_result: dict = {}
+            if not dry_run and conflicts:
+                merge_result = self.merge(conflicts, strategy=strategy)
 
-        # Push locally-modified records to Notion (uses parallel push)
-        push_result = await self.push_updates(dry_run=dry_run)
+            # Push locally-modified records to Notion (uses parallel push)
+            push_result = await self.push_updates(dry_run=dry_run)
 
-        # Update sync state after successful sync
-        if not dry_run:
-            self.sync_state.update_last_sync()
+            # Update sync state after successful sync
+            if not dry_run:
+                self.sync_state.update_last_sync()
 
-        return {
-            "pulled": len(pulled),
-            "new_companies": new_count,
-            "conflicts_found": len(conflicts),
-            "merged": merge_result.get("merged", 0),
-            "strategy_used": strategy,
-            "dry_run": dry_run,
-            "pushed": push_result["pushed"],
-            "push_errors": push_result["push_errors"],
-        }
+            return {
+                "pulled": len(pulled),
+                "new_companies": new_count,
+                "conflicts_found": len(conflicts),
+                "merged": merge_result.get("merged", 0),
+                "strategy_used": strategy,
+                "dry_run": dry_run,
+                "pushed": push_result["pushed"],
+                "push_errors": push_result["push_errors"],
+            }
 
     # ------------------------------------------------------------------
     # Internal helpers
@@ -282,18 +348,18 @@ class NotionBidirectionalSync:
         self, pulled: list[dict], dry_run: bool = False
     ) -> int:
         """Create local CompanyORM rows for Notion records not yet in DB."""
+        # Bulk-load existing names for O(1) lookups
+        existing_names = {
+            row[0] for row in self.session.query(CompanyORM.name).all()
+        }
+
         created = 0
         for record in pulled:
             company_name = record.get("name")
             if not company_name:
                 continue
 
-            exists = (
-                self.session.query(CompanyORM.id)
-                .filter(CompanyORM.name == company_name)
-                .first()
-            )
-            if exists:
+            if company_name in existing_names:
                 continue
 
             if dry_run:
@@ -306,6 +372,7 @@ class NotionBidirectionalSync:
                 if value is not None:
                     setattr(new_company, field, value)
             self.session.add(new_company)
+            existing_names.add(company_name)
             created += 1
 
         if not dry_run:
@@ -340,6 +407,15 @@ def _normalise(value) -> str:
     return str(value).strip()
 
 
+def _to_utc(dt: datetime) -> datetime:
+    """Normalise a datetime to UTC-aware for consistent comparison."""
+    from datetime import timezone
+
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
+
+
 def _pick_winner(conflict: dict, strategy: ConflictStrategy) -> str:
     """Return 'local' or 'notion' based on strategy."""
     if strategy == ConflictStrategy.LOCAL_WINS:
@@ -347,15 +423,14 @@ def _pick_winner(conflict: dict, strategy: ConflictStrategy) -> str:
     if strategy == ConflictStrategy.NOTION_WINS:
         return "notion"
 
-    # NEWEST_WINS -- compare timestamps
+    # NEWEST_WINS -- compare timestamps in UTC
     local_dt = _parse_dt(conflict.get("local_updated"))
     notion_dt = _parse_dt(conflict.get("notion_updated"))
 
     if local_dt and notion_dt:
-        # Strip timezone info for comparison (local DB is naive, Notion is UTC)
-        local_naive = local_dt.replace(tzinfo=None)
-        notion_naive = notion_dt.replace(tzinfo=None)
-        return "local" if local_naive >= notion_naive else "notion"
+        local_utc = _to_utc(local_dt)
+        notion_utc = _to_utc(notion_dt)
+        return "local" if local_utc >= notion_utc else "notion"
     if local_dt:
         return "local"
     if notion_dt:
