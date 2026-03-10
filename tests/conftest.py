@@ -1,12 +1,19 @@
 """Shared test fixtures."""
 
 import json
+import os
+import sys
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+
+# Prevent Playwright from finding browser binaries during tests
+os.environ.setdefault("PLAYWRIGHT_BROWSERS_PATH", "/dev/null")
+os.environ.setdefault("PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD", "1")
+
 from sqlalchemy import create_engine
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.orm import sessionmaker
 
 from src.config.enums import SourcePortal
 from src.db.orm import Base, CompanyORM
@@ -14,6 +21,84 @@ from src.models.job_posting import JobPosting
 from src.scrapers.rate_limiter import RateLimiter
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
+
+
+# ---------------------------------------------------------------------------
+# Global browser-launch prevention
+# ---------------------------------------------------------------------------
+
+def _make_mock_browser():
+    """Create a fully mocked browser context chain."""
+    mock_page = AsyncMock()
+    mock_page.goto = AsyncMock()
+    mock_page.content = AsyncMock(return_value="<html></html>")
+    mock_page.inner_text = AsyncMock(return_value="")
+    mock_page.wait_for_selector = AsyncMock()
+    mock_page.wait_for_timeout = AsyncMock()
+    mock_page.evaluate = AsyncMock(return_value=None)
+    mock_page.query_selector = AsyncMock(return_value=None)
+    mock_page.query_selector_all = AsyncMock(return_value=[])
+    mock_page.close = AsyncMock()
+
+    mock_context = AsyncMock()
+    mock_context.new_page = AsyncMock(return_value=mock_page)
+    mock_context.close = AsyncMock()
+    mock_context.pages = [mock_page]
+
+    mock_browser = AsyncMock()
+    mock_browser.new_context = AsyncMock(return_value=mock_context)
+    mock_browser.new_page = AsyncMock(return_value=mock_page)
+    mock_browser.close = AsyncMock()
+
+    mock_chromium = MagicMock()
+    mock_chromium.launch = AsyncMock(return_value=mock_browser)
+    mock_chromium.launch_persistent_context = AsyncMock(return_value=mock_context)
+
+    mock_pw = AsyncMock()
+    mock_pw.chromium = mock_chromium
+    mock_pw.start = AsyncMock(return_value=mock_pw)
+    mock_pw.stop = AsyncMock()
+
+    return mock_pw
+
+
+class _MockAsyncPlaywright:
+    """Context manager that returns a mock playwright instance."""
+
+    def __init__(self):
+        self._pw = _make_mock_browser()
+
+    def __call__(self):
+        return self
+
+    async def start(self):
+        return self._pw
+
+    async def __aenter__(self):
+        return self._pw
+
+    async def __aexit__(self, *args):
+        pass
+
+
+@pytest.fixture(autouse=True)
+def _block_browser_launch(request):
+    """Block all real Playwright/Patchright browser launches in tests.
+
+    Tests marked with @pytest.mark.live skip this fixture.
+    """
+    if "live" in request.keywords:
+        yield
+        return
+
+    mock_pw = _MockAsyncPlaywright()
+
+    with patch("playwright.async_api.async_playwright", mock_pw), \
+         patch.dict(sys.modules, {
+             "patchright": MagicMock(),
+             "patchright.async_api": MagicMock(async_playwright=mock_pw),
+         }):
+        yield
 
 
 def load_fixture(filename: str) -> str:

@@ -9,6 +9,19 @@ from rich.table import Table
 app = typer.Typer()
 console = Console()
 
+_OUTCOME_STYLES = {
+    "success": "[green]Found[/green]",
+    "no_results": "[yellow]No Results[/yellow]",
+    "error": "[red]Error[/red]",
+    "timeout": "[red]Timeout[/red]",
+    "skipped": "[yellow]Skipped[/yellow]",
+}
+
+
+def _format_outcome(outcome: str) -> str:
+    """Return a Rich-styled string for a ScrapeResult outcome."""
+    return _OUTCOME_STYLES.get(outcome, outcome)
+
 
 @app.command()
 def scan(
@@ -88,19 +101,30 @@ def scan(
         console.print(f"[bold]Smart scan: using {len(scrapers)} portals (demoted excluded)[/bold]")
 
     async def _run_scans() -> None:
+        from src.scrapers.base_scraper import ScrapeResult
+
         results_table = Table(title="Scan Results")
         results_table.add_column("Portal", style="bold")
+        results_table.add_column("Outcome")
         results_table.add_column("Found", justify="right")
         results_table.add_column("New", justify="right")
         results_table.add_column("Time", justify="right")
-        results_table.add_column("Status")
+        results_table.add_column("Details")
 
         total_found = 0
         total_new = 0
+        outcome_counts: dict[str, int] = {
+            "success": 0, "no_results": 0, "error": 0,
+            "timeout": 0, "skipped": 0,
+        }
 
         for s in scrapers:
             if not s.is_healthy():
-                results_table.add_row(s.name, "-", "-", "-", "[red]Skipped (unhealthy)[/red]")
+                outcome_counts["skipped"] += 1
+                results_table.add_row(
+                    s.name, "[yellow]Skipped[/yellow]", "-", "-", "-",
+                    "Unhealthy",
+                )
                 continue
 
             portal_kws = kw_override or portal_keywords.get(s.name, ["AI Engineer", "ML Engineer"])
@@ -109,27 +133,81 @@ def scan(
             try:
                 postings = await s.search(portal_kws, days=days)
                 elapsed = time.time() - start
-                found, new, new_co = persist_scan_results(
-                    session, s.name, postings, scan_type, elapsed
-                )
-                total_found += found
-                total_new += new
-                results_table.add_row(
-                    s.name,
-                    str(found),
-                    f"[green]{new}[/green]",
-                    f"{elapsed:.1f}s",
-                    "[green]OK[/green]",
+
+                if postings:
+                    sr = ScrapeResult(
+                        entries=postings, outcome="success",
+                        duration_seconds=elapsed,
+                    )
+                else:
+                    sr = ScrapeResult(
+                        entries=[], outcome="no_results",
+                        duration_seconds=elapsed,
+                    )
+            except asyncio.TimeoutError:
+                elapsed = time.time() - start
+                sr = ScrapeResult(
+                    entries=[], outcome="timeout",
+                    error_message=f"Timeout after {elapsed:.0f}s",
+                    duration_seconds=elapsed,
                 )
             except Exception as e:
                 elapsed = time.time() - start
-                persist_scan_results(session, s.name, [], scan_type, elapsed, errors=str(e))
-                results_table.add_row(
-                    s.name, "0", "0", f"{elapsed:.1f}s", f"[red]Error: {e}[/red]"
+                sr = ScrapeResult(
+                    entries=[], outcome="error",
+                    error_message=str(e),
+                    duration_seconds=elapsed,
                 )
+
+            outcome_counts[sr.outcome] += 1
+
+            # Persist results
+            found = new = 0
+            if sr.outcome in ("success", "no_results"):
+                found, new, _new_co = persist_scan_results(
+                    session, s.name, sr.entries, scan_type, sr.duration_seconds,
+                )
+            else:
+                persist_scan_results(
+                    session, s.name, [], scan_type, sr.duration_seconds,
+                    errors=sr.error_message,
+                )
+
+            total_found += found
+            total_new += new
+
+            # Format outcome display
+            outcome_display = _format_outcome(sr.outcome)
+            found_display = str(found) if sr.outcome in ("success", "no_results") else "-"
+            new_display = f"[green]{new}[/green]" if new > 0 else str(new) if sr.outcome in ("success", "no_results") else "-"
+            detail = sr.error_message if sr.error_message else ("OK" if sr.outcome == "success" else "No matches")
+
+            results_table.add_row(
+                s.name,
+                outcome_display,
+                found_display,
+                new_display,
+                f"{sr.duration_seconds:.1f}s",
+                detail,
+            )
 
         console.print(results_table)
         console.print(f"\n[bold]Total: {total_found} found, {total_new} new[/bold]")
+
+        # Summary line
+        parts = []
+        if outcome_counts["success"]:
+            parts.append(f"[green]{outcome_counts['success']} OK[/green]")
+        if outcome_counts["no_results"]:
+            parts.append(f"[yellow]{outcome_counts['no_results']} no results[/yellow]")
+        if outcome_counts["error"]:
+            parts.append(f"[red]{outcome_counts['error']} errors[/red]")
+        if outcome_counts["timeout"]:
+            parts.append(f"[red]{outcome_counts['timeout']} timeouts[/red]")
+        if outcome_counts["skipped"]:
+            parts.append(f"[dim]{outcome_counts['skipped']} skipped[/dim]")
+        if parts:
+            console.print(f"Outcomes: {' | '.join(parts)}")
 
     asyncio.run(_run_scans())
     session.close()
@@ -211,6 +289,7 @@ def test_antibot():
         pw = await async_playwright().start()
         browser = await pw.chromium.launch(
             headless=False,
+            channel="chrome",
             args=["--disable-blink-features=AutomationControlled"],
         )
         page = await browser.new_page()
