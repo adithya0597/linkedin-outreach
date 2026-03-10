@@ -25,6 +25,9 @@ class Settings(BaseSettings):
     # Chrome
     chrome_user_data_dir: str = "/Users/adithya/Library/Application Support/Google/Chrome"
 
+    # Timezone
+    timezone: str = "America/Chicago"
+
     # Rate limits
     notion_requests_per_second: float = 3.0
     linkedin_searches_per_day: int = 100

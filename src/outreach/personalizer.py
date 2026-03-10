@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 import yaml
+
+logger = logging.getLogger(__name__)
 
 from src.db.orm import CompanyORM, ContactORM
 from src.outreach.template_engine import OutreachTemplateEngine
@@ -160,7 +163,7 @@ class OutreachPersonalizer:
             "name": contact.name if contact else "",
             "company": company.name,
             "role": company.role or "AI Engineer",
-            "topic": company.differentiators.split(",")[0].strip() if company.differentiators else "AI engineering",
+            "topic": company.differentiators.split("|")[0].strip() if company.differentiators else "AI engineering",
             "relevant_experience": exp["relevant_experience"],
             "value_prop": exp["value_prop"],
             "metric": exp["metric"],
@@ -198,9 +201,9 @@ class OutreachPersonalizer:
             try:
                 rendered, is_valid, count = self.engine.render(tmpl, context, msg_type)
                 variants.append((rendered, is_valid, count))
-            except Exception:
+            except Exception as e:
                 # Template may not exist; skip it
-                pass
+                logger.debug(f"Template {tmpl} not available: {e}")
 
         # If we got fewer than n, fill with field-swap fallback on original template
         while len(variants) < n:
@@ -209,8 +212,9 @@ class OutreachPersonalizer:
             try:
                 rendered, is_valid, count = self.engine.render(template_name, ctx, msg_type)
                 variants.append((rendered, is_valid, count))
-            except Exception:
+            except Exception as e:
                 # If even fallback fails, append a placeholder
+                logger.debug(f"Fallback render failed for {template_name}: {e}")
                 variants.append(("", False, 0))
             break  # Only one fallback
 

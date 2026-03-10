@@ -261,7 +261,8 @@ class BatchOutreachEngine:
                 rendered, is_valid, char_count = self.engine.render(
                     template, context, engine_type
                 )
-            except Exception:
+            except Exception as e:
+                logger.warning(f"Render failed for template {template} in sequence: {e}")
                 rendered = ""
                 is_valid = True
                 char_count = 0

@@ -87,7 +87,8 @@ class LLMClassifier:
         for text in texts:
             try:
                 results.append(self.classify(text))
-            except Exception:
+            except Exception as e:
+                logger.warning(f"Batch classification failed for text: {e}")
                 results.append(ClassificationResult(
                     classification="NEUTRAL",
                     confidence=0.0,

@@ -9,6 +9,13 @@ from pathlib import Path
 from loguru import logger
 
 
+try:
+    from src.config.settings import get_settings
+    _tz = get_settings().timezone
+except Exception:
+    _tz = "America/Chicago"
+
+
 class CalendarBridge:
     """Create gcal_create_event-compatible payloads."""
 
@@ -30,8 +37,8 @@ class CalendarBridge:
                 f"Follow-up with {contact} at {company}.\n"
                 f"Scheduled automatically after positive response."
             ),
-            "start": {"dateTime": start.isoformat(), "timeZone": "America/Chicago"},
-            "end": {"dateTime": end.isoformat(), "timeZone": "America/Chicago"},
+            "start": {"dateTime": start.isoformat(), "timeZone": _tz},
+            "end": {"dateTime": end.isoformat(), "timeZone": _tz},
             "metadata": {
                 "company": company,
                 "contact": contact,
