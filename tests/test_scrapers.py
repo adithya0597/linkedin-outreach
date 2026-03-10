@@ -119,20 +119,28 @@ def test_registry_get_by_tier():
 def test_registry_correct_scraper_type():
     registry = build_default_registry()
 
+    from src.scrapers.builtin_scraper import BuiltInPatchrightScraper
     from src.scrapers.homepage_first_scraper import (
         StartupJobsHomepageFirstScraper,
         YCHomepageFirstScraper,
     )
-    from src.scrapers.mcp_scraper import MCPPlaywrightScraper
+    from src.scrapers.jobboardai_scraper import JobBoardAIPatchrightScraper
+    from src.scrapers.linkedin_scraper import LinkedInPatchrightScraper
 
     linkedin = registry.get_scraper("linkedin")
-    assert isinstance(linkedin, MCPPlaywrightScraper)
+    assert isinstance(linkedin, LinkedInPatchrightScraper)
 
     startup_jobs = registry.get_scraper("startup_jobs")
     assert isinstance(startup_jobs, StartupJobsHomepageFirstScraper)
 
     yc = registry.get_scraper("yc")
     assert isinstance(yc, YCHomepageFirstScraper)
+
+    builtin = registry.get_scraper("builtin")
+    assert isinstance(builtin, BuiltInPatchrightScraper)
+
+    jobboard_ai = registry.get_scraper("jobboard_ai")
+    assert isinstance(jobboard_ai, JobBoardAIPatchrightScraper)
 
 
 # --- H1B filter tests ---
