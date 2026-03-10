@@ -4,11 +4,14 @@ from sqlalchemy import (
     Boolean,
     Column,
     DateTime,
+    Enum,
     Float,
     ForeignKey,
+    Index,
     Integer,
     String,
     Text,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import DeclarativeBase, relationship
 
@@ -19,6 +22,10 @@ class Base(DeclarativeBase):
 
 class CompanyORM(Base):
     __tablename__ = "companies"
+    __table_args__ = (
+        Index('ix_company_disqualified_stage', 'is_disqualified', 'stage'),
+        Index('ix_company_source_tier', 'source_portal', 'tier'),
+    )
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String(255), nullable=False, index=True)
@@ -52,7 +59,7 @@ class CompanyORM(Base):
     stage = Column(String(50), default="To apply")
     validation_result = Column(String(20), nullable=True)
     validation_notes = Column(Text, default="")
-    differentiators = Column(Text, default="")  # comma-separated
+    differentiators = Column(Text, default="")  # pipe-separated (|)
     role = Column(String(255), default="")
     role_url = Column(String(500), default="")
     salary_range = Column(String(100), default="")
@@ -77,10 +84,15 @@ class CompanyORM(Base):
     job_postings = relationship("JobPostingORM", back_populates="company")
     h1b_records = relationship("H1BORM", back_populates="company")
     outreach_records = relationship("OutreachORM", back_populates="company")
+    warmup_actions = relationship("WarmUpActionORM", back_populates="company")
+    warmup_sequences = relationship("WarmUpSequenceORM", back_populates="company")
 
 
 class ContactORM(Base):
     __tablename__ = "contacts"
+    __table_args__ = (
+        Index('ix_contact_company_score', 'company_id', 'contact_score'),
+    )
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String(255), nullable=False)
@@ -106,6 +118,10 @@ class ContactORM(Base):
 
 class JobPostingORM(Base):
     __tablename__ = "job_postings"
+    __table_args__ = (
+        Index('ix_posting_portal_company', 'source_portal', 'company_id'),
+        UniqueConstraint("url", name="uq_postings_url"),
+    )
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     company_id = Column(Integer, ForeignKey("companies.id"), nullable=True)
@@ -157,6 +173,9 @@ class H1BORM(Base):
 
 class ScanORM(Base):
     __tablename__ = "scans"
+    __table_args__ = (
+        Index('ix_scan_portal_started', 'portal', 'started_at'),
+    )
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     portal = Column(String(100), default="Manual")
@@ -193,3 +212,29 @@ class OutreachORM(Base):
     created_at = Column(DateTime, default=datetime.now)
 
     company = relationship("CompanyORM", back_populates="outreach_records")
+
+
+class WarmUpActionORM(Base):
+    __tablename__ = "warmup_actions"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    company_id = Column(Integer, ForeignKey("companies.id"), nullable=False)
+    contact_name = Column(String(255), nullable=False)
+    action_type = Column(String(50), nullable=False)  # WarmUpAction enum value
+    performed_at = Column(DateTime, default=datetime.now)
+    notes = Column(Text, default="")
+
+    company = relationship("CompanyORM", back_populates="warmup_actions")
+
+
+class WarmUpSequenceORM(Base):
+    __tablename__ = "warmup_sequences"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    company_id = Column(Integer, ForeignKey("companies.id"), nullable=False)
+    contact_name = Column(String(255), nullable=False)
+    state = Column(String(50), nullable=False, default="PENDING")  # WarmUpState enum value
+    created_at = Column(DateTime, default=datetime.now)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+
+    company = relationship("CompanyORM", back_populates="warmup_sequences")

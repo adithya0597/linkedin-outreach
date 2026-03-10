@@ -18,6 +18,16 @@ def get_engine(db_path: str = "data/outreach.db") -> Engine:
         cursor = dbapi_connection.cursor()
         cursor.execute("PRAGMA journal_mode=WAL")
         cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.execute("PRAGMA synchronous=NORMAL")
+        cursor.execute("PRAGMA cache_size=-10000")  # 10MB cache
+        cursor.execute("PRAGMA busy_timeout=5000")  # 5 second busy timeout
+        cursor.execute("PRAGMA temp_store=MEMORY")
+        cursor.close()
+
+    @event.listens_for(engine, "close")
+    def optimize_on_close(dbapi_connection, connection_record):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA optimize")
         cursor.close()
 
     return engine
