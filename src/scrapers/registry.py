@@ -72,6 +72,7 @@ def build_default_registry() -> PortalRegistry:
     )
     from src.scrapers.jobspy_scraper import JobSpyScraper
     from src.scrapers.linkedin_email_ingest import LinkedInAlertScraper
+    from src.scrapers.linkedin_scraper import LinkedInPatchrightScraper
     from src.scrapers.mcp_scraper import MCPPlaywrightScraper
     from src.scrapers.patchright_scraper import (
         JobrightPatchrightScraper,
@@ -80,7 +81,7 @@ def build_default_registry() -> PortalRegistry:
 
     # Shared rate limiter with per-portal rates
     rl = RateLimiter(default_tokens_per_second=1.0)
-    rl.configure("LinkedIn", 0.2)                  # 1 req / 5s (anti-bot)
+    rl.configure("LinkedIn", 0.15)                  # ~1 req / 7s (strict anti-bot safety)
     rl.configure("Wellfound", 0.3)                 # browser-based homepage-first
     rl.configure("Jobright AI", 0.5)               # Patchright stealth
     rl.configure("TrueUp", 0.5)                    # Patchright stealth
@@ -106,10 +107,8 @@ def build_default_registry() -> PortalRegistry:
         ("wttj", WTTJHomepageFirstScraper(rate_limiter=rl)),
         ("startup_jobs", StartupJobsHomepageFirstScraper(rate_limiter=rl)),
         ("hiring_cafe", HiringCafeHomepageFirstScraper(rate_limiter=rl)),
-        # ── Tier B: MCP Playwright (interactive, logged-in) ──────
-        ("linkedin", MCPPlaywrightScraper(
-            SourcePortal.LINKEDIN, skill_name="scan-linkedin", rate_limiter=rl,
-        )),
+        # ── Tier B: Patchright stealth (LinkedIn, logged-in Chrome) ─
+        ("linkedin", LinkedInPatchrightScraper(rate_limiter=rl)),
         ("linkedin_alerts", LinkedInAlertScraper(rate_limiter=rl)),
         ("builtin", MCPPlaywrightScraper(
             SourcePortal.BUILT_IN, skill_name="scan-builtin", rate_limiter=rl,
