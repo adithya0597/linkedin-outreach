@@ -138,17 +138,68 @@ def _strip_html(html: str) -> str:
 
 ASHBY_SLUGS: dict[str, str] = {
     "llamaindex": "llamaindex",
-    "cursor": "cursor",
-    "hippocratic_ai": "Hippocratic%20AI",
     "langchain": "langchain",
     "norm_ai": "norm-ai",
     "cinder": "cinder",
-    "evenup": "evenup",
 }
 
 GREENHOUSE_SLUGS: dict[str, str] = {
     "snorkelai": "snorkelai",
 }
+
+
+def _load_slugs_from_config(portal_key: str) -> dict[str, str]:
+    """Load ATS slugs from portals.yaml config, if available."""
+    from pathlib import Path
+
+    import yaml
+
+    config_path = Path(__file__).parent.parent.parent / "config" / "portals.yaml"
+    if not config_path.exists():
+        return {}
+
+    try:
+        with open(config_path) as f:
+            config = yaml.safe_load(f)
+
+        portal_config = config.get("portals", {}).get(portal_key, {})
+        slugs = portal_config.get("ats_slugs", [])
+        if isinstance(slugs, list):
+            return {s: s for s in slugs if s}
+        return {}
+    except Exception:
+        return {}
+
+
+def _load_greenhouse_slugs_from_db() -> dict[str, str]:
+    """Load Greenhouse company slugs from the database.
+
+    Queries companies where ats_system='Greenhouse' and has a careers_url
+    that includes a Greenhouse slug.
+    """
+    try:
+        from src.db.database import get_engine, get_session
+        from src.db.orm import CompanyORM
+
+        engine = get_engine()
+        session = get_session(engine)
+        companies = session.query(CompanyORM).filter(
+            CompanyORM.ats_system == "Greenhouse"
+        ).all()
+
+        slugs = {}
+        for co in companies:
+            # Extract slug from careers_url like "https://boards.greenhouse.io/snorkelai"
+            if co.careers_url:
+                match = re.search(r'greenhouse\.io/(\w+)', co.careers_url)
+                if match:
+                    slug = match.group(1)
+                    slugs[co.name.lower().replace(" ", "_")] = slug
+
+        session.close()
+        return slugs
+    except Exception:
+        return {}
 
 
 # ---------------------------------------------------------------------------
@@ -174,7 +225,11 @@ class AshbyScraper(HttpxScraper):
         results: list[JobPosting] = []
         client = await self._get_client()
 
-        for slug_key, slug in ASHBY_SLUGS.items():
+        # Merge hardcoded slugs with config-driven slugs
+        config_slugs = _load_slugs_from_config("ashby")
+        all_slugs = {**ASHBY_SLUGS, **config_slugs}
+
+        for slug_key, slug in all_slugs.items():
             await self._throttle()
             url = f"https://api.ashbyhq.com/posting-api/job-board/{slug}"
             try:
@@ -268,7 +323,12 @@ class GreenhouseScraper(HttpxScraper):
         results: list[JobPosting] = []
         client = await self._get_client()
 
-        for slug_key, slug in GREENHOUSE_SLUGS.items():
+        # Merge hardcoded + config + DB slugs
+        config_slugs = _load_slugs_from_config("greenhouse")
+        db_slugs = _load_greenhouse_slugs_from_db()
+        all_slugs = {**GREENHOUSE_SLUGS, **config_slugs, **db_slugs}
+
+        for slug_key, slug in all_slugs.items():
             await self._throttle()
             url = f"https://boards-api.greenhouse.io/v1/boards/{slug}/jobs?content=true"
             try:

@@ -52,6 +52,10 @@ class BaseScraper(ABC):
         """Return True if the scraper is operational."""
         return True
 
+    async def close(self) -> None:
+        """Clean up scraper resources. Override in subclasses if needed."""
+        pass
+
     async def _throttle(self) -> None:
         """Acquire a rate-limiter token for this portal (no-op if no limiter)."""
         if self._rate_limiter is not None:
