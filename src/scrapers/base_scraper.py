@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 
 import httpx
@@ -9,6 +10,17 @@ from src.config.enums import PortalTier, SourcePortal
 from src.models.job_posting import JobPosting
 from src.scrapers.rate_limiter import RateLimiter
 from src.scrapers.retry import scraper_retry
+
+
+@dataclass
+class ScrapeResult:
+    """Result of a single scraper run."""
+
+    entries: list = field(default_factory=list)  # list[JobPosting]
+    outcome: str = "success"  # "success" | "no_results" | "error" | "timeout" | "skipped"
+    error_message: str = ""
+    status_code: int | None = None
+    duration_seconds: float = 0.0
 
 
 class BaseScraper(ABC):

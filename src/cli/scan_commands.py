@@ -1,6 +1,5 @@
 """Scan-related CLI commands: scan, mcp-persist, scan-gmail, rescan, test-antibot."""
 
-import os
 from pathlib import Path
 
 import typer
@@ -9,6 +8,19 @@ from rich.table import Table
 
 app = typer.Typer()
 console = Console()
+
+_OUTCOME_STYLES = {
+    "success": "[green]Found[/green]",
+    "no_results": "[yellow]No Results[/yellow]",
+    "error": "[red]Error[/red]",
+    "timeout": "[red]Timeout[/red]",
+    "skipped": "[yellow]Skipped[/yellow]",
+}
+
+
+def _format_outcome(outcome: str) -> str:
+    """Return a Rich-styled string for a ScrapeResult outcome."""
+    return _OUTCOME_STYLES.get(outcome, outcome)
 
 
 @app.command()
@@ -20,10 +32,10 @@ def scan(
     keywords: str = typer.Option("", help="Comma-separated keywords (overrides portal config)"),
     smart: bool = typer.Option(False, "--smart", help="Auto-skip demoted portals via PortalScorer"),
     days: int = typer.Option(30, "--days", help="Only include postings from the last N days"),
-    no_sync: bool = typer.Option(False, "--no-sync", help="Skip Notion sync after scan"),
 ):
     """Scan job portals for new listings."""
     import asyncio
+    import time
 
     import yaml
 
@@ -89,91 +101,115 @@ def scan(
         console.print(f"[bold]Smart scan: using {len(scrapers)} portals (demoted excluded)[/bold]")
 
     async def _run_scans() -> None:
-        from src.scrapers.concurrent_runner import ConcurrentScanRunner
+        from src.scrapers.base_scraper import ScrapeResult
 
         results_table = Table(title="Scan Results")
         results_table.add_column("Portal", style="bold")
+        results_table.add_column("Outcome")
         results_table.add_column("Found", justify="right")
         results_table.add_column("New", justify="right")
         results_table.add_column("Time", justify="right")
-        results_table.add_column("Status")
+        results_table.add_column("Details")
 
         total_found = 0
         total_new = 0
+        outcome_counts: dict[str, int] = {
+            "success": 0, "no_results": 0, "error": 0,
+            "timeout": 0, "skipped": 0,
+        }
 
-        # Separate healthy vs unhealthy scrapers
-        healthy_scrapers = []
         for s in scrapers:
             if not s.is_healthy():
-                results_table.add_row(s.name, "-", "-", "-", "[red]Skipped (unhealthy)[/red]")
-            else:
-                healthy_scrapers.append(s)
-
-        if healthy_scrapers:
-            # Build per-scraper keyword map
-            scraper_kw_map = {}
-            for s in healthy_scrapers:
-                scraper_kw_map[s.name] = kw_override or portal_keywords.get(
-                    s.name, ["AI Engineer", "ML Engineer"]
+                outcome_counts["skipped"] += 1
+                results_table.add_row(
+                    s.name, "[yellow]Skipped[/yellow]", "-", "-", "-",
+                    "Unhealthy",
                 )
+                continue
 
-            # Persist callback per-result (called by the DB writer)
-            persist_results = {}
+            portal_kws = kw_override or portal_keywords.get(s.name, ["AI Engineer", "ML Engineer"])
 
-            def _persist(portal_name, entries):
-                found, new, new_co = persist_scan_results(
-                    session, portal_name, entries, scan_type
-                )
-                persist_results[portal_name] = (found, new, new_co)
+            start = time.time()
+            try:
+                postings = await s.search(portal_kws, days=days)
+                elapsed = time.time() - start
 
-            # Wrap each scraper so its keywords are baked in
-            class _KeywordWrapper:
-                def __init__(self, scraper, kws):
-                    self._scraper = scraper
-                    self._kws = kws
-                    self.name = scraper.name
-                    self.portal_name = scraper.name
-
-                async def search(self, _query, **kw):
-                    return await self._scraper.search(self._kws, **kw)
-
-            wrapped = [_KeywordWrapper(s, scraper_kw_map[s.name]) for s in healthy_scrapers]
-
-            runner = ConcurrentScanRunner(max_concurrent=5)
-            await runner.run_all(wrapped, query=None, filters={"days": days}, persist_fn=_persist)
-
-            # Build results table from runner.results
-            for result in runner.results:
-                if result.error:
-                    persist_scan_results(
-                        session, result.portal, [], scan_type, result.duration, errors=result.error
-                    )
-                    results_table.add_row(
-                        result.portal, "0", "0",
-                        f"{result.duration:.1f}s",
-                        f"[red]Error: {result.error}[/red]",
+                if postings:
+                    sr = ScrapeResult(
+                        entries=postings, outcome="success",
+                        duration_seconds=elapsed,
                     )
                 else:
-                    found, new, _ = persist_results.get(result.portal, (len(result.entries), 0, 0))
-                    total_found += found
-                    total_new += new
-                    results_table.add_row(
-                        result.portal,
-                        str(found),
-                        f"[green]{new}[/green]",
-                        f"{result.duration:.1f}s",
-                        "[green]OK[/green]",
+                    sr = ScrapeResult(
+                        entries=[], outcome="no_results",
+                        duration_seconds=elapsed,
                     )
+            except asyncio.TimeoutError:
+                elapsed = time.time() - start
+                sr = ScrapeResult(
+                    entries=[], outcome="timeout",
+                    error_message=f"Timeout after {elapsed:.0f}s",
+                    duration_seconds=elapsed,
+                )
+            except Exception as e:
+                elapsed = time.time() - start
+                sr = ScrapeResult(
+                    entries=[], outcome="error",
+                    error_message=str(e),
+                    duration_seconds=elapsed,
+                )
+
+            outcome_counts[sr.outcome] += 1
+
+            # Persist results
+            found = new = 0
+            if sr.outcome in ("success", "no_results"):
+                found, new, _new_co = persist_scan_results(
+                    session, s.name, sr.entries, scan_type, sr.duration_seconds,
+                )
+            else:
+                persist_scan_results(
+                    session, s.name, [], scan_type, sr.duration_seconds,
+                    errors=sr.error_message,
+                )
+
+            total_found += found
+            total_new += new
+
+            # Format outcome display
+            outcome_display = _format_outcome(sr.outcome)
+            found_display = str(found) if sr.outcome in ("success", "no_results") else "-"
+            new_display = f"[green]{new}[/green]" if new > 0 else str(new) if sr.outcome in ("success", "no_results") else "-"
+            detail = sr.error_message if sr.error_message else ("OK" if sr.outcome == "success" else "No matches")
+
+            results_table.add_row(
+                s.name,
+                outcome_display,
+                found_display,
+                new_display,
+                f"{sr.duration_seconds:.1f}s",
+                detail,
+            )
 
         console.print(results_table)
         console.print(f"\n[bold]Total: {total_found} found, {total_new} new[/bold]")
 
+        # Summary line
+        parts = []
+        if outcome_counts["success"]:
+            parts.append(f"[green]{outcome_counts['success']} OK[/green]")
+        if outcome_counts["no_results"]:
+            parts.append(f"[yellow]{outcome_counts['no_results']} no results[/yellow]")
+        if outcome_counts["error"]:
+            parts.append(f"[red]{outcome_counts['error']} errors[/red]")
+        if outcome_counts["timeout"]:
+            parts.append(f"[red]{outcome_counts['timeout']} timeouts[/red]")
+        if outcome_counts["skipped"]:
+            parts.append(f"[dim]{outcome_counts['skipped']} skipped[/dim]")
+        if parts:
+            console.print(f"Outcomes: {' | '.join(parts)}")
+
     asyncio.run(_run_scans())
-
-    if not no_sync:
-        from src.cli._db import auto_sync
-        auto_sync(session)
-
     session.close()
 
 
@@ -249,12 +285,6 @@ def test_antibot():
             engine = "Playwright (fallback)"
 
         console.print(f"[bold]Testing {engine} against bot detection...[/bold]")
-
-        if os.environ.get("PYTEST_CURRENT_TEST") or os.environ.get("TESTING") == "1":
-            raise RuntimeError(
-                "Real browser launch blocked during testing! "
-                "Mock the browser launch or use @pytest.mark.live"
-            )
 
         pw = await async_playwright().start()
         browser = await pw.chromium.launch(

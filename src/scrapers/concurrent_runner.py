@@ -2,23 +2,14 @@
 
 import asyncio
 import logging
-from dataclasses import dataclass, field
 
-from src.scrapers.circuit_breaker import CircuitBreaker, CircuitOpenError
+from src.scrapers.base_scraper import ScrapeResult
+from src.scrapers.circuit_breaker import CircuitBreaker
 
 logger = logging.getLogger(__name__)
 
 # Per-scraper timeout (seconds)
 SCRAPER_TIMEOUT = 120
-
-
-@dataclass
-class ScanResult:
-    portal: str
-    entries: list
-    error: str | None = None
-    duration: float = 0.0
-    outcome: str = "success"  # success, no_results, error, timeout, skipped
 
 
 class ConcurrentScanRunner:
@@ -27,7 +18,7 @@ class ConcurrentScanRunner:
     def __init__(self, max_concurrent: int = 5):
         self.semaphore = asyncio.Semaphore(max_concurrent)
         self.results_queue: asyncio.Queue = asyncio.Queue()
-        self.results: list[ScanResult] = []
+        self.results: list[ScrapeResult] = []
         self._breakers: dict[str, CircuitBreaker] = {}
 
     def _get_breaker(self, portal: str) -> CircuitBreaker:
@@ -38,7 +29,7 @@ class ConcurrentScanRunner:
             )
         return self._breakers[portal]
 
-    async def _run_single(self, scraper, query, filters: dict):
+    async def _run_single(self, scraper, query, filters: dict) -> ScrapeResult:
         """Run a single scraper with semaphore, timeout, and circuit breaker."""
         async with self.semaphore:
             portal = getattr(scraper, "portal_name", getattr(scraper, "name", str(scraper)))
@@ -49,26 +40,29 @@ class ConcurrentScanRunner:
             # Check circuit breaker
             if not await breaker.can_execute():
                 duration = loop.time() - start
-                result = ScanResult(
-                    portal=portal, entries=[],
-                    error="Circuit breaker open",
-                    duration=duration, outcome="skipped"
+                result = ScrapeResult(
+                    entries=[],
+                    error_message="Circuit breaker open",
+                    duration_seconds=duration,
+                    outcome="skipped",
                 )
-                await self.results_queue.put(result)
+                await self.results_queue.put((portal, result))
                 return result
 
             # Check if this is an MCP stub (returns [] by design)
             scraper_class = type(scraper).__name__
-            if hasattr(scraper, '_scraper'):
+            if hasattr(scraper, "_scraper"):
                 scraper_class = type(scraper._scraper).__name__
             if scraper_class == "MCPPlaywrightScraper":
                 duration = loop.time() - start
-                result = ScanResult(
-                    portal=portal, entries=[],
-                    error=None, duration=duration, outcome="skipped"
+                result = ScrapeResult(
+                    entries=[],
+                    duration_seconds=duration,
+                    outcome="skipped",
+                    error_message="MCP stub — use /scan-* skill instead",
                 )
                 logger.info(f"{portal} is an MCP stub — use /scan-* skill instead")
-                await self.results_queue.put(result)
+                await self.results_queue.put((portal, result))
                 return result
 
             try:
@@ -80,26 +74,30 @@ class ConcurrentScanRunner:
                 await breaker.record_success()
 
                 outcome = "success" if entries else "no_results"
-                result = ScanResult(
-                    portal=portal, entries=entries or [],
-                    duration=duration, outcome=outcome
+                result = ScrapeResult(
+                    entries=entries or [],
+                    duration_seconds=duration,
+                    outcome=outcome,
                 )
             except TimeoutError:
                 duration = loop.time() - start
                 await breaker.record_failure()
                 logger.error(f"Scraper {portal} timed out after {SCRAPER_TIMEOUT}s")
-                result = ScanResult(
-                    portal=portal, entries=[],
-                    error=f"Timeout ({SCRAPER_TIMEOUT}s)",
-                    duration=duration, outcome="timeout"
+                result = ScrapeResult(
+                    entries=[],
+                    error_message=f"Timeout ({SCRAPER_TIMEOUT}s)",
+                    duration_seconds=duration,
+                    outcome="timeout",
                 )
             except Exception as e:
                 duration = loop.time() - start
                 await breaker.record_failure()
                 logger.error(f"Scraper {portal} failed: {e}")
-                result = ScanResult(
-                    portal=portal, entries=[],
-                    error=str(e), duration=duration, outcome="error"
+                result = ScrapeResult(
+                    entries=[],
+                    error_message=str(e),
+                    duration_seconds=duration,
+                    outcome="error",
                 )
             finally:
                 # Resource cleanup - close scraper if possible
@@ -118,7 +116,7 @@ class ConcurrentScanRunner:
                     except Exception:
                         pass
 
-            await self.results_queue.put(result)
+            await self.results_queue.put((portal, result))
             return result
 
     async def _db_writer(self, persist_fn, total_scrapers: int):
@@ -126,13 +124,13 @@ class ConcurrentScanRunner:
         processed = 0
         all_entries = []
         while processed < total_scrapers:
-            result = await self.results_queue.get()
+            portal, result = await self.results_queue.get()
             self.results.append(result)
-            if result.entries and not result.error:
+            if result.entries and result.outcome == "success":
                 try:
-                    persist_fn(result.portal, result.entries)
+                    persist_fn(portal, result.entries)
                 except Exception as e:
-                    logger.error(f"DB write failed for {result.portal}: {e}")
+                    logger.error(f"DB write failed for {portal}: {e}")
             all_entries.extend(result.entries)
             processed += 1
             self.results_queue.task_done()
@@ -142,7 +140,7 @@ class ConcurrentScanRunner:
         """Drain the results queue without persisting."""
         processed = 0
         while processed < total_scrapers:
-            result = await self.results_queue.get()
+            _portal, result = await self.results_queue.get()
             self.results.append(result)
             processed += 1
             self.results_queue.task_done()
