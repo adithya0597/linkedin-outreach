@@ -150,7 +150,13 @@ class HNHiringScraper(HttpxScraper):
             logger.warning(f"HN Algolia fallback failed for '{keyword}': {e}")
             return results
 
-        for hit in data.get("hits", [])[:30]:
+        # Algolia returns {"hits": [...]}, but handle list responses gracefully
+        if isinstance(data, list):
+            hits = data
+        else:
+            hits = data.get("hits", [])
+
+        for hit in hits[:30]:
             # Check if this is from a "Who is hiring" thread
             story_title = hit.get("story_title", "")
             if "hiring" not in story_title.lower():

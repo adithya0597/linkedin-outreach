@@ -199,12 +199,37 @@ SAMPLE_HN_ITEMS = [
 class TestHNHiringScraper:
     @pytest.mark.asyncio
     async def test_hn_hiring_search(self):
-        """Mock hnhiring.com response, verify parsing."""
+        """Mock Algolia HN Search API response, verify parsing.
+
+        After C4 changes, search() goes directly to HN Algolia API
+        (hnhiring.com is dead). Algolia returns {"hits": [...]}.
+        """
         scraper = HNHiringScraper()
+        algolia_response_data = {
+            "hits": [
+                {
+                    "story_title": "Ask HN: Who is hiring? (March 2026)",
+                    "comment_text": "Acme AI | AI Engineer | San Francisco, CA | Remote | H1B",
+                    "objectID": "40001001",
+                    "created_at": "2026-03-01T00:00:00Z",
+                },
+                {
+                    "story_title": "Ask HN: Who is hiring? (March 2026)",
+                    "comment_text": "BetaML | ML Platform Engineer | New York, NY",
+                    "objectID": "40001002",
+                    "created_at": "2026-03-02T00:00:00Z",
+                },
+                {
+                    "story_title": "Other thread (not hiring)",
+                    "comment_text": "Just a random comment",
+                    "objectID": "40001003",
+                },
+            ]
+        }
         mock_response = httpx.Response(
             200,
-            content=json.dumps(SAMPLE_HN_ITEMS).encode(),
-            request=httpx.Request("GET", "https://hnhiring.com/technologies/ai.json"),
+            content=json.dumps(algolia_response_data).encode(),
+            request=httpx.Request("GET", "https://hn.algolia.com/api/v1/search"),
         )
 
         mock_client = AsyncMock(spec=httpx.AsyncClient)
@@ -279,30 +304,29 @@ class TestHNHiringScraper:
         assert scraper.name == "HN Hiring"
 
     @pytest.mark.asyncio
-    async def test_hn_hiring_404_fallback(self):
-        """404 from hnhiring.com tries search endpoint, then Algolia fallback."""
+    async def test_hn_hiring_algolia_error_returns_empty(self):
+        """Algolia API error returns empty results gracefully.
+
+        After C4 changes, search() goes directly to Algolia.
+        If Algolia returns an error, the scraper should return [].
+        """
         scraper = HNHiringScraper()
 
-        # First call returns 404, second (search endpoint) also returns 404
-        response_404 = httpx.Response(
-            404,
-            content=b"Not Found",
-            request=httpx.Request("GET", "https://hnhiring.com/technologies/ai.json"),
-        )
-        response_search = httpx.Response(
-            200,
-            content=json.dumps(SAMPLE_HN_ITEMS[:1]).encode(),
-            request=httpx.Request("GET", "https://hnhiring.com/search.json?q=ai"),
+        response_500 = httpx.Response(
+            500,
+            content=b"Internal Server Error",
+            request=httpx.Request("GET", "https://hn.algolia.com/api/v1/search"),
         )
 
         mock_client = AsyncMock(spec=httpx.AsyncClient)
-        mock_client.get = AsyncMock(side_effect=[response_404, response_search])
+        mock_client.get = AsyncMock(return_value=response_500)
 
         with patch.object(scraper, "_get_client", return_value=mock_client):
             with patch.object(scraper, "_throttle", new_callable=AsyncMock):
                 results = await scraper.search(keywords=["ai"], days=30)
 
-        assert len(results) >= 1
+        # Should gracefully return empty, not raise
+        assert results == []
 
 
 # ---------------------------------------------------------------------------

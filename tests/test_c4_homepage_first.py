@@ -1,17 +1,18 @@
 """Tests for HomepageFirstScraper base class and portal implementations."""
 
-import pytest
 from unittest.mock import AsyncMock, patch
 
-from src.scrapers.homepage_first_scraper import (
-    HomepageFirstScraper,
-    WellfoundHomepageFirstScraper,
-    StartupJobsHomepageFirstScraper,
-    HiringCafeHomepageFirstScraper,
-    YCHomepageFirstScraper,
-    WTTJHomepageFirstScraper,
-)
+import pytest
+
 from src.config.enums import SourcePortal
+from src.scrapers.homepage_first_scraper import (
+    HiringCafeHomepageFirstScraper,
+    HomepageFirstScraper,
+    StartupJobsHomepageFirstScraper,
+    WellfoundHomepageFirstScraper,
+    WTTJHomepageFirstScraper,
+    YCHomepageFirstScraper,
+)
 
 
 @pytest.fixture

@@ -2,9 +2,9 @@
 
 import asyncio
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
-from src.scrapers.circuit_breaker import CircuitBreaker, CircuitOpenError
+from src.scrapers.circuit_breaker import CircuitBreaker
 
 logger = logging.getLogger(__name__)
 
