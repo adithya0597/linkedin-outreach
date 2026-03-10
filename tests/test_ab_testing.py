@@ -6,7 +6,7 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from src.db.orm import Base, CompanyORM, OutreachORM
+from src.db.orm import Base, OutreachORM
 from src.outreach.ab_testing import ABTestManager
 
 

@@ -8,7 +8,6 @@ from pathlib import Path
 
 from loguru import logger
 
-
 try:
     from src.config.settings import get_settings
     _tz = get_settings().timezone

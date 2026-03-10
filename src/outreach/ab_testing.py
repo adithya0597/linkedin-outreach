@@ -28,7 +28,7 @@ class ABTestManager:
             self._write_config({"experiments": {}})
 
     def _read_config(self) -> dict:
-        with open(self.config_path, "r") as f:
+        with open(self.config_path) as f:
             return json.load(f)
 
     def _write_config(self, data: dict) -> None:
@@ -98,7 +98,7 @@ class ABTestManager:
     def get_active_experiment(self) -> dict | None:
         """Return the first active experiment, or None if no active experiments."""
         config = self._read_config()
-        for name, exp in config["experiments"].items():
+        for _name, exp in config["experiments"].items():
             if exp.get("status") == "active":
                 return {
                     "experiment_id": exp["experiment_id"],
@@ -176,7 +176,7 @@ class ABTestManager:
     def list_experiments(self) -> list[dict]:
         config = self._read_config()
         result = []
-        for name, exp in config["experiments"].items():
+        for _name, exp in config["experiments"].items():
             result.append({
                 "experiment_id": exp["experiment_id"],
                 "name": exp["name"],

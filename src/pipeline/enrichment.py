@@ -9,7 +9,6 @@ from sqlalchemy.orm import Session
 
 from src.db.orm import CompanyORM
 
-
 # Regex patterns for extracting structured data from text
 LOCATION_PATTERNS = [
     re.compile(r"(?:based in|headquartered in|hq:?\s*)([\w\s]+,\s*[A-Z]{2})", re.IGNORECASE),

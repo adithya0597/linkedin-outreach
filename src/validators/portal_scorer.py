@@ -7,7 +7,6 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 import yaml
-from loguru import logger
 from sqlalchemy.orm import Session
 
 from src.db.orm import ScanORM

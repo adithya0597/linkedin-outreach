@@ -5,8 +5,8 @@ from __future__ import annotations
 import fcntl
 import os
 import time
-from contextlib import contextmanager
-from datetime import datetime
+from contextlib import contextmanager, suppress
+from datetime import UTC, datetime
 from enum import Enum
 from pathlib import Path
 
@@ -61,10 +61,8 @@ def _sync_lock(lock_path: Path | None = None, timeout: float = 30.0):
         yield fd
     finally:
         if acquired:
-            try:
+            with suppress(OSError):
                 fcntl.flock(fd, fcntl.LOCK_UN)
-            except OSError:
-                pass
             os.close(fd)
 
 
@@ -409,11 +407,10 @@ def _normalise(value) -> str:
 
 def _to_utc(dt: datetime) -> datetime:
     """Normalise a datetime to UTC-aware for consistent comparison."""
-    from datetime import timezone
 
     if dt.tzinfo is None:
-        return dt.replace(tzinfo=timezone.utc)
-    return dt.astimezone(timezone.utc)
+        return dt.replace(tzinfo=UTC)
+    return dt.astimezone(UTC)
 
 
 def _pick_winner(conflict: dict, strategy: ConflictStrategy) -> str:

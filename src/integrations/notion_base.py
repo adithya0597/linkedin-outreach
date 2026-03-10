@@ -54,7 +54,8 @@ class NotionPropertyConverter:
             return {"url": str(value)}
 
         if notion_type == "multi_select":
-            tags = [t.strip() for t in str(value).split(",") if t.strip()]
+            # Use pipe delimiter — commas can appear inside tag names
+            tags = [t.strip() for t in str(value).split("|") if t.strip()]
             return {"multi_select": [{"name": t} for t in tags]}
 
         if notion_type == "date":
@@ -96,7 +97,7 @@ class NotionPropertyConverter:
 
         if ptype == "multi_select":
             items = prop.get("multi_select", [])
-            return ", ".join(i["name"] for i in items)
+            return " | ".join(i["name"] for i in items)
 
         if ptype == "date":
             d = prop.get("date")

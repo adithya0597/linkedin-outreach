@@ -2,11 +2,11 @@
 
 import asyncio
 import time
-from unittest.mock import AsyncMock, MagicMock, call
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from src.scrapers.concurrent_runner import ConcurrentScanRunner, ScanResult
+from src.scrapers.concurrent_runner import ConcurrentScanRunner
 
 
 def _make_mock_scraper(name: str, results: list | None = None, delay: float = 0.0, error: Exception | None = None):

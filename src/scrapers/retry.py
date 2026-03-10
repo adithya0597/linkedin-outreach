@@ -15,7 +15,7 @@ from tenacity import (
 
 logger = logging.getLogger(__name__)
 
-__all__ = ["scraper_retry", "notion_retry", "RetryError"]
+__all__ = ["RetryError", "notion_retry", "scraper_retry"]
 
 # Retry on transient HTTP / network errors
 scraper_retry = retry(

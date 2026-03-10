@@ -5,7 +5,7 @@ Launch: streamlit run src/dashboard/app.py
 
 import os
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 
 import pandas as pd
@@ -19,11 +19,10 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from sqlalchemy import func
 
 from src.dashboard.themes import get_theme
 from src.db.database import get_engine, init_db
-from src.db.orm import CompanyORM, ContactORM, H1BORM, OutreachORM, ScanORM
+from src.db.orm import H1BORM, CompanyORM, ContactORM, OutreachORM, ScanORM
 
 theme = get_theme(os.getenv("DASHBOARD_THEME", "light"))
 
@@ -260,16 +259,16 @@ def page_company_explorer():
         with fc1:
             search = st.text_input("Search by name", "")
         with fc2:
-            tiers = ["All"] + sorted(df["tier"].dropna().unique().tolist())
+            tiers = ["All", *sorted(df["tier"].dropna().unique().tolist())]
             sel_tier = st.selectbox("Tier", tiers)
         with fc3:
-            h1b_opts = ["All"] + sorted(df["h1b_status"].dropna().unique().tolist())
+            h1b_opts = ["All", *sorted(df["h1b_status"].dropna().unique().tolist())]
             sel_h1b = st.selectbox("H1B Status", h1b_opts)
         with fc4:
-            funding_opts = ["All"] + sorted(df["funding_stage"].dropna().unique().tolist())
+            funding_opts = ["All", *sorted(df["funding_stage"].dropna().unique().tolist())]
             sel_funding = st.selectbox("Funding Stage", funding_opts)
         with fc5:
-            val_opts = ["All"] + sorted(df["validation_result"].dropna().unique().tolist())
+            val_opts = ["All", *sorted(df["validation_result"].dropna().unique().tolist())]
             sel_val = st.selectbox("Validation", val_opts)
 
     filtered = df.copy()
@@ -590,13 +589,6 @@ def page_h1b_status():
     h1b_counts = companies_df["h1b_status"].value_counts()
 
     cols = st.columns(min(len(h1b_counts), 5))
-    color_map = {
-        "Confirmed": "green",
-        "Likely": "blue",
-        "Unknown": "orange",
-        "Explicit No": "red",
-        "N/A": "gray",
-    }
     for i, (status, count) in enumerate(h1b_counts.items()):
         col_idx = i % len(cols)
         cols[col_idx].metric(status, count)

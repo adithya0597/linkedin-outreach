@@ -7,7 +7,6 @@ import pytest
 from src.db.orm import CompanyORM, OutreachORM
 from src.outreach.followup_manager import FollowUpManager
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------

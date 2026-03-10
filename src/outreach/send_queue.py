@@ -5,9 +5,8 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 
 from loguru import logger
-from sqlalchemy.orm import Session
-
 from sqlalchemy import func
+from sqlalchemy.orm import Session
 
 from src.db.orm import CompanyORM, ContactORM, OutreachORM
 

@@ -92,7 +92,7 @@ class TestPersistScanResultsCompanyEnrichment:
                 source_portal=SourcePortal.HIRING_CAFE,
             ),
         ]
-        found, new, new_co = persist_scan_results(
+        _found, _new, new_co = persist_scan_results(
             enrichment_session, "startup.jobs", postings
         )
 
@@ -150,7 +150,7 @@ class TestPersistScanResultsCompanyEnrichment:
                 source_portal=SourcePortal.STARTUP_JOBS,
             ),
         ]
-        found, new, new_co = persist_scan_results(
+        _found, _new, new_co = persist_scan_results(
             enrichment_session, "startup.jobs", postings
         )
 
@@ -183,7 +183,7 @@ class TestPersistScanResultsCompanyEnrichment:
                 source_portal=SourcePortal.WELLFOUND,
             ),
         ]
-        found, new, new_co = persist_scan_results(
+        _found, _new, new_co = persist_scan_results(
             enrichment_session, "wellfound", postings
         )
 

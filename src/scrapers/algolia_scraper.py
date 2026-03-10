@@ -10,9 +10,9 @@ Tier A — Low Risk: No browser needed, just httpx POST requests.
 
 from __future__ import annotations
 
+import contextlib
 import json
-from datetime import datetime, timedelta
-from urllib.parse import quote_plus
+from datetime import datetime
 
 import httpx
 from bs4 import BeautifulSoup
@@ -147,7 +147,7 @@ class YCAlgoliaScraper(AlgoliaBaseScraper):
         """
         postings: list[JobPosting] = []
         company_name = hit.get("name", "")
-        batch = hit.get("batch", "")
+        hit.get("batch", "")
 
         # Check if company is hiring
         if not hit.get("highlight_black", "") and not hit.get("jobs", []):
@@ -267,10 +267,7 @@ class WTTJAlgoliaScraper(AlgoliaBaseScraper):
 
         # Company info
         company = hit.get("company", {})
-        if isinstance(company, dict):
-            company_name = company.get("name", "")
-        else:
-            company_name = str(company) if company else ""
+        company_name = company.get("name", "") if isinstance(company, dict) else str(company) if company else ""
 
         # Location
         office = hit.get("office", {})
@@ -319,10 +316,8 @@ class WTTJAlgoliaScraper(AlgoliaBaseScraper):
         posted_date = None
         published = hit.get("published_at", "") or hit.get("created_at", "")
         if published:
-            try:
+            with contextlib.suppress(ValueError, TypeError):
                 posted_date = datetime.fromisoformat(published.replace("Z", "+00:00"))
-            except (ValueError, TypeError):
-                pass
 
         return JobPosting(
             title=title.strip(),

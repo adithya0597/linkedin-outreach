@@ -1,11 +1,11 @@
 """Tests for Gmail send flow CLI commands."""
-import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 
 def test_gmail_send_dry_run_displays_drafts():
     """gmail-send --dry-run displays drafts without send instructions."""
     from typer.testing import CliRunner
+
     from src.cli.main import app
 
     runner = CliRunner()
@@ -23,6 +23,7 @@ def test_gmail_send_dry_run_displays_drafts():
 def test_gmail_send_shows_instructions():
     """gmail-send without --dry-run shows MCP instructions."""
     from typer.testing import CliRunner
+
     from src.cli.main import app
 
     runner = CliRunner()
@@ -39,6 +40,7 @@ def test_gmail_send_shows_instructions():
 def test_gmail_send_no_drafts():
     """gmail-send shows warning when no drafts pending."""
     from typer.testing import CliRunner
+
     from src.cli.main import app
 
     runner = CliRunner()
@@ -54,6 +56,7 @@ def test_gmail_send_no_drafts():
 def test_gmail_mark_sent_requires_flag():
     """gmail-mark-sent without --all or --company shows error."""
     from typer.testing import CliRunner
+
     from src.cli.main import app
 
     runner = CliRunner()

@@ -205,7 +205,7 @@ class TestBatchOutreachEngine:
         """draft_all respects limit parameter."""
         engine = BatchOutreachEngine(db_session)
         with patch.object(engine.engine, "render", side_effect=_mock_render):
-            results = engine.draft_all(limit=1)
+            engine.draft_all(limit=1)
 
         total = db_session.query(OutreachORM).count()
         assert total == 1

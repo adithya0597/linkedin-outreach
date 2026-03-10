@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from collections import Counter
-
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 from thefuzz import fuzz

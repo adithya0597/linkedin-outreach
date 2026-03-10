@@ -13,11 +13,14 @@ from src.db.orm import CompanyORM, JobPostingORM, ScanORM
 from src.models.job_posting import JobPosting
 
 
-def _normalize(text: str) -> str:
-    """Normalize text for composite key comparison.
+def _normalize(text: str | None) -> str:
+    """Normalize text for composite key and cache key comparison.
 
-    Lowercase, strip whitespace, remove punctuation.
+    Lowercase, strip whitespace, remove punctuation, collapse spaces.
+    Returns empty string for None/empty input.
     """
+    if not text:
+        return ""
     text = text.lower().strip()
     text = text.translate(str.maketrans("", "", string.punctuation))
     # Collapse multiple spaces
@@ -119,7 +122,7 @@ def persist_scan_results(
 
     # Preload existing company names for tracking new creations
     existing_company_names = {
-        row[0].lower() for row in session.query(CompanyORM.name).all() if row[0]
+        _normalize(row[0]) for row in session.query(CompanyORM.name).all() if row[0]
     }
     new_companies = 0
     company_cache: dict[str, CompanyORM | None] = {}
@@ -131,8 +134,11 @@ def persist_scan_results(
             continue
 
         # Secondary dedup: composite key (normalized company_name, normalized title)
-        comp_key = (_normalize(posting.company_name or ""), _normalize(posting.title or ""))
-        if comp_key[0] and comp_key[1]:
+        # When either field is empty/None, skip composite dedup — rely on URL-only
+        norm_company = _normalize(posting.company_name)
+        norm_title = _normalize(posting.title)
+        if norm_company and norm_title:
+            comp_key = (norm_company, norm_title)
             if comp_key in existing_composites or comp_key in batch_composites:
                 continue
             batch_composites.add(comp_key)
@@ -140,7 +146,7 @@ def persist_scan_results(
         orm = posting_to_orm(posting)
 
         # Link posting to company (get or create)
-        company_key = (posting.company_name or "").strip().lower()
+        company_key = _normalize(posting.company_name)
         if company_key:
             if company_key not in company_cache:
                 was_known = company_key in existing_company_names

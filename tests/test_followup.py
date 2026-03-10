@@ -8,7 +8,6 @@ from src.db.orm import CompanyORM, OutreachORM
 from src.outreach.followup_manager import FollowUpManager
 from src.outreach.sequence_tracker import SequenceTracker
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------

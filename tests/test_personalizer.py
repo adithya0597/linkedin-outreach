@@ -7,11 +7,11 @@ import pytest
 
 from src.db.orm import CompanyORM, ContactORM
 from src.outreach.personalizer import (
+    _DOMAIN_KEYWORDS,
+    _DOMAIN_WEIGHTS,
     EXPERIENCE_MAP,
     TIER1_OVERRIDES,
     OutreachPersonalizer,
-    _DOMAIN_KEYWORDS,
-    _DOMAIN_WEIGHTS,
 )
 
 
@@ -327,7 +327,7 @@ class TestDomainWeights:
         """_DOMAIN_KEYWORDS should still be importable and contain all 5 domains."""
         expected_domains = {"graph_rag", "healthcare", "llm_framework", "ml_infrastructure", "agentic_ai"}
         assert set(_DOMAIN_KEYWORDS.keys()) == expected_domains
-        for domain, keywords in _DOMAIN_KEYWORDS.items():
+        for _domain, keywords in _DOMAIN_KEYWORDS.items():
             assert isinstance(keywords, list)
             assert len(keywords) >= 5
 

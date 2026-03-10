@@ -1,8 +1,7 @@
 """End-to-end integration tests for the full outreach pipeline."""
 
-import pytest
 from datetime import datetime, timedelta
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 from src.db.orm import CompanyORM, ContactORM, OutreachORM
 
@@ -273,7 +272,7 @@ def test_enrichment_then_scoring(session):
 
 def test_sequence_tracker_full_cycle(session):
     """mark_sent(step1) -> mark_sent(step2) -> get_status -> mark_responded."""
-    company, contact = _seed_tier1_company(session, name="SeqCo")
+    _company, _contact = _seed_tier1_company(session, name="SeqCo")
 
     from src.outreach.sequence_tracker import SequenceTracker
 

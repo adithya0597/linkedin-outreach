@@ -1,11 +1,11 @@
 """Tests for LinkedIn queue CLI commands."""
-import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 
 def test_linkedin_queue_displays_messages():
     """linkedin-queue shows copy-paste formatted messages."""
     from typer.testing import CliRunner
+
     from src.cli.main import app
 
     runner = CliRunner()
@@ -35,6 +35,7 @@ def test_linkedin_queue_displays_messages():
 def test_linkedin_queue_empty():
     """linkedin-queue shows message when queue is empty."""
     from typer.testing import CliRunner
+
     from src.cli.main import app
 
     runner = CliRunner()
@@ -51,6 +52,7 @@ def test_linkedin_queue_empty():
 def test_linkedin_status_shows_counts():
     """linkedin-status shows outreach counts by stage."""
     from typer.testing import CliRunner
+
     from src.cli.main import app
 
     runner = CliRunner()
@@ -67,6 +69,7 @@ def test_linkedin_status_shows_counts():
 def test_linkedin_status_empty():
     """linkedin-status shows message when no records."""
     from typer.testing import CliRunner
+
     from src.cli.main import app
 
     runner = CliRunner()

@@ -24,7 +24,6 @@ def scan(
 ):
     """Scan job portals for new listings."""
     import asyncio
-    import time
 
     import yaml
 

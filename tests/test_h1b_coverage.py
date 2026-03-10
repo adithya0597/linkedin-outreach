@@ -7,10 +7,8 @@ MyVisaJobsClient._parse_result, and their search methods.
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime
+import os
 from unittest.mock import AsyncMock, MagicMock, patch
-
-import pytest
 
 from src.config.enums import H1BStatus
 from src.validators.h1b_verifier import (
@@ -18,7 +16,6 @@ from src.validators.h1b_verifier import (
     H1BGraderClient,
     MyVisaJobsClient,
 )
-
 
 # ---------------------------------------------------------------------------
 # FrogHireClient._parse_result
@@ -142,11 +139,14 @@ class TestFrogHireSearch:
     def test_search_no_playwright(self):
         """When playwright is not installed, search returns None."""
         client = FrogHireClient()
-        with patch.dict("sys.modules", {"playwright.async_api": None, "playwright": None}):
-            # We need to mock the import inside the search method
-            with patch("builtins.__import__", side_effect=ImportError("No module named 'playwright'")):
-                result = asyncio.run(client.search("TestCo"))
-                assert result is None
+        # Temporarily clear test env vars so the safety guard doesn't fire
+        with patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("PYTEST_CURRENT_TEST", None)
+            os.environ.pop("TESTING", None)
+            with patch.dict("sys.modules", {"playwright.async_api": None, "playwright": None}):
+                with patch("builtins.__import__", side_effect=ImportError("No module named 'playwright'")):
+                    result = asyncio.run(client.search("TestCo"))
+                    assert result is None
 
 
 # ---------------------------------------------------------------------------

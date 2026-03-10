@@ -5,7 +5,7 @@ from __future__ import annotations
 from loguru import logger
 
 from src.db.orm import CompanyORM
-from src.outreach.personalizer import EXPERIENCE_MAP, TIER1_OVERRIDES, _DOMAIN_KEYWORDS
+from src.outreach.personalizer import _DOMAIN_KEYWORDS, TIER1_OVERRIDES
 
 
 class DomainMatchScorer:

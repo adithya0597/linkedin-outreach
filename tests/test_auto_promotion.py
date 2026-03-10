@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
-import pytest
 import yaml
 
 from src.pipeline.auto_promotion import PortalAutoPromoter

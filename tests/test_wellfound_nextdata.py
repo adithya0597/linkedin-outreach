@@ -12,7 +12,6 @@ from src.config.enums import SourcePortal
 from src.models.job_posting import JobPosting
 from src.scrapers.wellfound_nextdata import WellfoundNextDataScraper
 
-
 # ---------------------------------------------------------------------------
 # HTML fixtures with embedded __NEXT_DATA__
 # ---------------------------------------------------------------------------

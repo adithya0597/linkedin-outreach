@@ -282,7 +282,7 @@ class DailyOrchestrator:
             return f" ({t}s)" if t is not None else ""
 
         lines = [
-            f"# Daily Pipeline Summary",
+            "# Daily Pipeline Summary",
             f"**Timestamp:** {r.get('timestamp', 'N/A')}",
             f"**Total Time:** {r.get('total_time', 0)}s",
             "",

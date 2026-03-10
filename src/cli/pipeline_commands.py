@@ -1,6 +1,5 @@
 """Pipeline-related CLI commands: run-pipeline, daily-run, enrich, archive, promote-portals, seed."""
 
-from pathlib import Path
 
 import typer
 from rich.console import Console

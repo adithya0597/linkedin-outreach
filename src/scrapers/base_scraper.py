@@ -75,10 +75,7 @@ class BaseScraper(ABC):
             return True
 
         # For Tier 1 and Tier 2, reject postings that explicitly won't sponsor
-        if posting.h1b_text.lower() in ("no", "explicit no", "will not sponsor"):
-            return False
-
-        return True
+        return posting.h1b_text.lower() not in ("no", "explicit no", "will not sponsor")
 
     async def _fetch_with_retry(self, url: str, **kwargs) -> httpx.Response:
         """Fetch URL with retry logic. Opt-in helper for subclasses."""

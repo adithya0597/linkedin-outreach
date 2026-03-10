@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 import time
 
 import pytest
@@ -10,7 +9,6 @@ from src.models.job_posting import JobPosting
 from src.scrapers.deduplicator import Deduplicator
 from src.scrapers.rate_limiter import RateLimiter
 from src.scrapers.registry import PortalRegistry, build_default_registry
-
 
 # --- RateLimiter tests ---
 
@@ -67,7 +65,7 @@ def test_deduplicator_no_match():
 
 def test_deduplicator_case_insensitive():
     dedup = Deduplicator()
-    is_dup, match = dedup.is_duplicate("llamaindex", ["LlamaIndex"])
+    is_dup, _match = dedup.is_duplicate("llamaindex", ["LlamaIndex"])
     assert is_dup is True
 
 

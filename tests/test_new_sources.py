@@ -15,13 +15,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import httpx
 import pytest
 
-from src.config.enums import SourcePortal
 from src.models.job_posting import JobPosting
 from src.scrapers.hn_hiring_scraper import HNHiringScraper
 from src.scrapers.jobspy_scraper import JobSpyScraper
 from src.scrapers.jsonld_parser import extract_jsonld_jobs
 from src.scrapers.lever_scraper import LEVER_SLUGS, LeverScraper
-
 
 # ---------------------------------------------------------------------------
 # LeverScraper tests
@@ -138,7 +136,6 @@ class TestJobSpyScraper:
 
         with patch.dict("sys.modules", {"jobspy": None}):
             # Force re-check by importing with None module
-            import importlib
             with patch("builtins.__import__", side_effect=ImportError("no jobspy")):
                 assert scraper.is_healthy() is False
 

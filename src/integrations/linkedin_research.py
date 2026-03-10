@@ -10,7 +10,6 @@ from sqlalchemy.orm import Session
 
 from src.db.orm import CompanyORM, ContactORM
 
-
 # Priority ranking for contact titles (lower = higher priority)
 TITLE_PRIORITY: dict[str, int] = {
     "CTO": 1,

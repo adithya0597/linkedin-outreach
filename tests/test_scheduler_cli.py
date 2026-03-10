@@ -4,8 +4,8 @@ import os
 import tempfile
 from unittest.mock import MagicMock, patch
 
-import yaml
 import pytest
+import yaml
 
 from src.pipeline.scheduler import ScanScheduler
 
@@ -112,7 +112,7 @@ class TestResponseCheckJobLogsCount:
 
         with (
             patch("src.pipeline.scheduler.ScanScheduler._maybe_reload_config"),
-            patch("src.db.database.get_engine") as mock_engine,
+            patch("src.db.database.get_engine"),
             patch("src.db.database.init_db"),
             patch("src.db.database.get_session", return_value=mock_session),
         ):

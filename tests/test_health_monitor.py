@@ -7,7 +7,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from src.db.orm import Base, ScanORM
-from src.pipeline.health_monitor import HealthMonitor, PortalHealth
+from src.pipeline.health_monitor import HealthMonitor
 
 
 @pytest.fixture

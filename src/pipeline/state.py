@@ -9,7 +9,6 @@ from sqlalchemy.orm import Session
 from src.config.enums import CompanyStage
 from src.db.orm import CompanyORM
 
-
 # Valid state transitions
 TRANSITIONS = {
     CompanyStage.TO_APPLY: [CompanyStage.APPLIED, CompanyStage.DISQUALIFIED],

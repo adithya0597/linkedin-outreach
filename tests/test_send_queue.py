@@ -2,10 +2,8 @@
 
 from datetime import datetime, timedelta
 
-import pytest
-
 from src.db.orm import CompanyORM, ContactORM, OutreachORM
-from src.outreach.send_queue import SendQueueManager, WEEKLY_SEND_LIMIT
+from src.outreach.send_queue import WEEKLY_SEND_LIMIT, SendQueueManager
 
 
 def _make_company(session, name, fit_score=80.0, tier="Tier 1 - HIGH", is_disqualified=False, careers_url="", linkedin_url=""):

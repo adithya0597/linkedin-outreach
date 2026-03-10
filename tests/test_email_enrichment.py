@@ -2,20 +2,17 @@
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
-
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from src.db.orm import Base, CompanyORM, ContactORM
 from src.integrations.email_enrichment import (
-    EmailEnrichmentBackend,
     EmailEnricher,
+    EmailEnrichmentBackend,
     HunterIOBackend,
     ManualBackend,
 )
-
 
 # ---------------------------------------------------------------------------
 # Fixtures

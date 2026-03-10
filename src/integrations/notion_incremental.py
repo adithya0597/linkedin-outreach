@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import fcntl
 import json
 from datetime import datetime
 from pathlib import Path
@@ -10,7 +11,11 @@ from loguru import logger
 
 
 class NotionSyncState:
-    """Manage sync state (last sync timestamp) in a JSON file."""
+    """Manage sync state (last sync timestamp) in a JSON file.
+
+    All reads and writes use ``fcntl.flock()`` to prevent concurrent
+    corruption when multiple processes sync simultaneously.
+    """
 
     def __init__(self, state_path: str = "data/notion_sync_state.json"):
         self._path = Path(state_path)
@@ -20,8 +25,7 @@ class NotionSyncState:
         if not self._path.exists():
             return None
         try:
-            data = json.loads(self._path.read_text())
-            return data.get("last_sync")
+            return self._locked_read().get("last_sync")
         except (json.JSONDecodeError, OSError):
             return None
 
@@ -32,16 +36,7 @@ class NotionSyncState:
 
         self._path.parent.mkdir(parents=True, exist_ok=True)
 
-        data = {}
-        if self._path.exists():
-            try:
-                data = json.loads(self._path.read_text())
-            except (json.JSONDecodeError, OSError):
-                data = {}
-
-        data["last_sync"] = timestamp
-        data["updated_at"] = datetime.now().isoformat()
-        self._path.write_text(json.dumps(data, indent=2))
+        self._locked_write(timestamp)
         logger.info(f"Sync state updated: {timestamp}")
 
     def reset(self) -> None:
@@ -58,3 +53,41 @@ class NotionSyncState:
             "state_file": str(self._path),
             "has_synced": last is not None,
         }
+
+    # ------------------------------------------------------------------
+    # File-locked I/O helpers
+    # ------------------------------------------------------------------
+
+    def _locked_read(self) -> dict:
+        """Read the JSON state file under a shared (read) lock."""
+        with open(self._path) as f:
+            fcntl.flock(f, fcntl.LOCK_SH)
+            try:
+                return json.load(f)
+            finally:
+                fcntl.flock(f, fcntl.LOCK_UN)
+
+    def _locked_write(self, timestamp: str) -> None:
+        """Read-modify-write the JSON state file under an exclusive lock.
+
+        Opens the file in ``r+`` mode (or creates it) and holds
+        ``LOCK_EX`` for the entire read-modify-write cycle.
+        """
+        # Ensure file exists so we can open in r+ mode
+        if not self._path.exists():
+            self._path.write_text("{}")
+
+        with open(self._path, "r+") as f:
+            fcntl.flock(f, fcntl.LOCK_EX)
+            try:
+                try:
+                    data = json.load(f)
+                except (json.JSONDecodeError, ValueError):
+                    data = {}
+                data["last_sync"] = timestamp
+                data["updated_at"] = datetime.now().isoformat()
+                f.seek(0)
+                f.truncate()
+                json.dump(data, f, indent=2)
+            finally:
+                fcntl.flock(f, fcntl.LOCK_UN)

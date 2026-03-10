@@ -106,7 +106,6 @@ class EmailOutreach:
             if company and company.ai_product_description
             else ""
         )
-        contact_title = contact.title if contact and contact.title else ""
 
         # Build body
         body_lines = [

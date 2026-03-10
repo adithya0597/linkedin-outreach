@@ -8,7 +8,7 @@ from datetime import datetime
 from loguru import logger
 from sqlalchemy.orm import Session
 
-from src.db.orm import CompanyORM, ContactORM, OutreachORM
+from src.db.orm import ContactORM, OutreachORM
 from src.integrations.notion_base import (
     NOTION_BASE,
     NotionAPIClient,

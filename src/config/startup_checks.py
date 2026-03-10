@@ -1,6 +1,6 @@
 """Startup validation checks for API keys, config files, and system dependencies."""
-import os
 import logging
+import os
 from dataclasses import dataclass
 from pathlib import Path
 

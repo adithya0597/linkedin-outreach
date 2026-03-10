@@ -2,7 +2,6 @@
 
 import typer
 from rich.console import Console
-from rich.table import Table
 
 app = typer.Typer()
 console = Console()

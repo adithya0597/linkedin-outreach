@@ -2,9 +2,7 @@
 
 import asyncio
 from datetime import datetime
-from unittest.mock import AsyncMock, MagicMock, patch
-
-import pytest
+from unittest.mock import AsyncMock
 
 from src.db.orm import CompanyORM, OutreachORM
 from src.integrations.outreach_sync import STAGE_MAPPING, OutreachNotionSync

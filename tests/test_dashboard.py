@@ -6,12 +6,11 @@ verify the module is importable, page functions exist, data loaders are
 callable, widget data structures are well-formed, and upgrade fields exist.
 """
 
-import importlib
 import sys
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from unittest.mock import MagicMock, patch, PropertyMock
+from unittest.mock import MagicMock, patch
 
 import pandas as pd
 import pytest
@@ -91,8 +90,7 @@ def _import_dashboard(mock_st):
 
     Returns the module object.
     """
-    pd = _make_mock_pd()
-    import pandas as real_pd
+    _make_mock_pd()
 
     # We need to mock the DB imports so the module doesn't try to create
     # a real SQLite engine at import time
@@ -103,7 +101,7 @@ def _import_dashboard(mock_st):
 
         # Mock the DB functions that are called at module level and in data loaders
         with (
-            patch("src.db.database.get_engine") as mock_engine,
+            patch("src.db.database.get_engine"),
             patch("src.db.database.init_db"),
         ):
             mock_sessionmaker = MagicMock()
@@ -368,7 +366,7 @@ class TestPhase2OutreachStages:
             "Offer",
             "Rejected",
         ]
-        assert app.OUTREACH_STAGES == expected
+        assert expected == app.OUTREACH_STAGES
         assert len(app.OUTREACH_STAGES) == 8
 
 

@@ -12,7 +12,6 @@ Used by PatchrightScraper to add human behavioral signals.
 from __future__ import annotations
 
 import asyncio
-import math
 import random
 
 
@@ -114,7 +113,7 @@ class BehavioralLayer:
         await self.human_click(selector)
         await self.human_delay(200, 500)
 
-        for i, char in enumerate(text):
+        for _i, char in enumerate(text):
             # Variable typing speed: 50-150ms per character
             delay = random.uniform(0.05, 0.15)
 

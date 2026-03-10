@@ -6,6 +6,7 @@ objects and persists them via the existing persist_scan_results() pipeline.
 
 from __future__ import annotations
 
+import contextlib
 import json
 from datetime import datetime
 from pathlib import Path
@@ -56,10 +57,8 @@ def mcp_results_to_postings(
         posted_date = None
         pd_str = item.get("posted_date", "")
         if pd_str:
-            try:
+            with contextlib.suppress(ValueError, TypeError):
                 posted_date = datetime.fromisoformat(pd_str.replace("Z", "+00:00"))
-            except (ValueError, TypeError):
-                pass
 
         posting = JobPosting(
             title=title,

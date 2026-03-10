@@ -6,7 +6,7 @@ from src.scrapers.registry import PortalRegistry, build_default_registry
 __all__ = [
     "BaseScraper",
     "Deduplicator",
-    "RateLimiter",
     "PortalRegistry",
+    "RateLimiter",
     "build_default_registry",
 ]

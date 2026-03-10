@@ -7,7 +7,7 @@ from datetime import datetime
 from loguru import logger
 from sqlalchemy.orm import Session
 
-from src.db.orm import CompanyORM, OutreachORM
+from src.db.orm import OutreachORM
 from src.integrations.notion_base import NOTION_BASE
 from src.integrations.notion_sync import NotionCRM
 
@@ -153,7 +153,7 @@ class OutreachNotionSync:
         grouped = self._get_outreach_by_company()
         stage_counts: dict[str, int] = {}
 
-        for company_name, records in grouped.items():
+        for _company_name, records in grouped.items():
             best = self._get_best_stage(records)
             stage_counts[best] = stage_counts.get(best, 0) + 1
 

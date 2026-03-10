@@ -12,7 +12,6 @@ logger = logging.getLogger(__name__)
 from src.db.orm import CompanyORM, ContactORM
 from src.outreach.template_engine import OutreachTemplateEngine
 
-
 EXPERIENCE_MAP: dict[str, dict[str, str]] = {
     "graph_rag": {
         "relevant_experience": "building a 138-node semantic knowledge graph with Neo4j powering production RAG pipelines",
@@ -237,7 +236,7 @@ class OutreachPersonalizer:
         return variants
 
     def get_best_template_for_contact(
-        self, contact: "ContactORM", message_type: str = "connection_request"
+        self, contact: ContactORM, message_type: str = "connection_request"
     ) -> str:
         """Select best template based on contact's title/role."""
         title = (contact.title or "").lower() if contact else ""

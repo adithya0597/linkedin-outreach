@@ -5,15 +5,8 @@ Targets lines 25-359 (parsers + seed_database).
 
 from __future__ import annotations
 
-import tempfile
-from datetime import datetime
-from pathlib import Path
-from unittest.mock import MagicMock, patch
-
-import pytest
-
 from src.config.enums import FundingStage, H1BStatus, SourcePortal, Tier
-from src.db.orm import Base, CompanyORM
+from src.db.orm import CompanyORM
 from src.db.seed import (
     BORDERLINE_COMPANIES,
     DISQUALIFIED_COMPANIES,
@@ -26,7 +19,6 @@ from src.db.seed import (
     parse_tier,
     seed_database,
 )
-
 
 # ---------------------------------------------------------------------------
 # parse_funding_stage
@@ -106,7 +98,7 @@ class TestParseEmployees:
         assert range_str == "50-100"
 
     def test_range_with_en_dash(self):
-        count, range_str = parse_employees("100\u2013200")
+        count, _range_str = parse_employees("100\u2013200")
         assert count == 150
 
     def test_single_number(self):

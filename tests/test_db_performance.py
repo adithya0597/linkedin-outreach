@@ -1,12 +1,9 @@
 """Tests for composite DB indexes and SQLite PRAGMAs."""
 
-import pytest
 from sqlalchemy import create_engine, inspect, text
-from sqlalchemy.orm import sessionmaker
 
 from src.db.database import get_engine, init_db
 from src.db.orm import Base
-
 
 # ---------------------------------------------------------------------------
 # Index tests

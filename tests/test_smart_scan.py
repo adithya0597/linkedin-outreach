@@ -4,14 +4,12 @@ from __future__ import annotations
 
 import asyncio
 from datetime import datetime, timedelta
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
 from src.db.orm import ScanORM
 from src.pipeline.smart_scan import SmartScanOrchestrator
-from src.validators.portal_scorer import PortalScore
-
 
 # ---------------------------------------------------------------------------
 # Fixtures

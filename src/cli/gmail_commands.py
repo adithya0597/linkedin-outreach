@@ -177,6 +177,6 @@ def check_responses_cmd():
 
         console.print("[bold green]Next steps:[/bold green]")
         console.print("  1. Ask Claude to search Gmail with each query via `gmail_search_messages` MCP")
-        console.print("  2. For each reply found, run: outreach log-response <company> --text 'reply text'")
+        console.print("  2. For each reply found, run: outreach respond <company> --text 'reply text'")
     finally:
         session.close()

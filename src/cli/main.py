@@ -26,6 +26,8 @@ from src.cli.portal_commands import app as portal_app
 from src.cli.scan_commands import app as scan_app
 from src.cli.system_commands import app as system_app
 from src.cli.validate_commands import app as validate_app
+from src.cli.warmup_commands import app as warmup_app
+from src.cli.workflow_commands import app as workflow_app
 
 # Register all commands from sub-apps into the main app (flat namespace)
 for sub_app in [
@@ -39,6 +41,8 @@ for sub_app in [
     gmail_app,
     linkedin_app,
     system_app,
+    warmup_app,
+    workflow_app,
 ]:
     for command in sub_app.registered_commands:
         # Typer leaves name=None when derived from function name;

@@ -1,9 +1,8 @@
 """Tests for company data enrichment pipeline."""
 
-import pytest
 
 from src.db.orm import CompanyORM
-from src.pipeline.enrichment import COMPLETENESS_FIELDS, CompanyEnricher
+from src.pipeline.enrichment import CompanyEnricher
 
 
 def _make_company(session, name, description="", hq_location="", employees=None,

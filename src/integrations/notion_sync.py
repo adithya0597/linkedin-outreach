@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from loguru import logger
 
@@ -29,8 +29,8 @@ def _parse_iso_utc(value: str | None) -> datetime | None:
 def _ensure_utc(dt: datetime) -> datetime:
     """Normalise a datetime to UTC-aware."""
     if dt.tzinfo is None:
-        return dt.replace(tzinfo=timezone.utc)
-    return dt.astimezone(timezone.utc)
+        return dt.replace(tzinfo=UTC)
+    return dt.astimezone(UTC)
 
 
 class NotionSchemas:

@@ -92,10 +92,7 @@ class SmartScanOrchestrator:
         from src.pipeline.orchestrator import Pipeline
 
         # Get smart portal list
-        if scan_type == "rescan":
-            smart_portals = self.get_rescan_portals()
-        else:
-            smart_portals = self.get_smart_portal_list(portals)
+        smart_portals = self.get_rescan_portals() if scan_type == "rescan" else self.get_smart_portal_list(portals)
 
         # Calculate skipped
         all_scores = self.scorer.score_all()

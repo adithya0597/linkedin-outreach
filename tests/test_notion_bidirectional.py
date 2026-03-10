@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-import asyncio
-from datetime import datetime, timedelta
-from unittest.mock import AsyncMock, MagicMock, call, patch
+from datetime import datetime
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from sqlalchemy import create_engine
@@ -15,7 +14,6 @@ from src.integrations.notion_bidirectional import (
     ConflictStrategy,
     NotionBidirectionalSync,
 )
-
 
 # ---------------------------------------------------------------------------
 # Fixtures

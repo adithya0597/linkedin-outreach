@@ -1,12 +1,11 @@
 """Tests for dashboard theme system."""
 
 import re
-from dataclasses import fields, FrozenInstanceError
+from dataclasses import FrozenInstanceError, fields
 
 import pytest
 
-from src.dashboard.themes import DARK, LIGHT, ThemeColors, get_theme
-
+from src.dashboard.themes import DARK, LIGHT, get_theme
 
 HEX_PATTERN = re.compile(r"^#[0-9A-Fa-f]{6}$")
 

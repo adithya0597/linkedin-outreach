@@ -3,11 +3,8 @@
 from __future__ import annotations
 
 import json
-import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
-
-import pytest
 
 from src.config.enums import SourcePortal
 from src.models.job_posting import JobPosting
@@ -16,7 +13,6 @@ from src.scrapers.mcp_bridge import (
     mcp_results_to_postings,
     persist_mcp_results,
 )
-
 
 # ---------------------------------------------------------------------------
 # load_mcp_results
@@ -167,7 +163,7 @@ class TestPersistMCPResults:
             patch("src.db.database.get_session", return_value=mock_session),
             patch("src.scrapers.persistence.persist_scan_results", return_value=(1, 1, 1)) as mock_persist,
         ):
-            total, new, companies = persist_mcp_results("linkedin", str(json_file))
+            total, new, _companies = persist_mcp_results("linkedin", str(json_file))
 
         mock_persist.assert_called_once()
         call_args = mock_persist.call_args

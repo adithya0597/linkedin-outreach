@@ -1,8 +1,7 @@
 """Tests for ResponseMonitor class."""
 
-import pytest
-from datetime import datetime, timedelta
-from unittest.mock import patch, MagicMock
+from datetime import datetime
+from unittest.mock import MagicMock, patch
 
 
 class TestResponseMonitor:
@@ -33,7 +32,7 @@ class TestResponseMonitor:
         # Configure session queries:
         # First call: query(OutreachORM).filter(...).all() -> [outreach]
         # Second call: query(ContactORM).filter(...).first() -> contact
-        mock_query = MagicMock()
+        MagicMock()
 
         call_count = [0]
 
@@ -129,7 +128,7 @@ class TestResponseMonitor:
         assert checks[0]["search_query"] == "from:bob@fmt.com after:2026/02/15"
 
     def test_process_response_delegates_to_tracker(self):
-        monitor, session = self._make_monitor()
+        monitor, _session = self._make_monitor()
 
         with patch("src.outreach.response_tracker.ResponseTracker") as MockTracker:
             mock_instance = MockTracker.return_value
@@ -141,7 +140,7 @@ class TestResponseMonitor:
             assert result["classification"] == "interested"
 
     def test_check_summary_counts(self):
-        monitor, session = self._make_monitor()
+        monitor, _session = self._make_monitor()
 
         # Mock get_pending_checks to return controlled data
         with patch.object(

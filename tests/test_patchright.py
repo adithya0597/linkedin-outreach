@@ -3,20 +3,16 @@ and behavioral mimicry layer (src/scrapers/behavioral_mimicry.py)."""
 
 from __future__ import annotations
 
-import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from src.config.enums import SourcePortal
-from src.models.job_posting import JobPosting
 from src.scrapers.behavioral_mimicry import BehavioralLayer
 from src.scrapers.patchright_scraper import (
     JobrightPatchrightScraper,
-    PatchrightScraper,
     TrueUpPatchrightScraper,
 )
-
 
 # ---------------------------------------------------------------------------
 # BehavioralLayer tests

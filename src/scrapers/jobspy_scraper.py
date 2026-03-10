@@ -9,6 +9,7 @@ Tier D — New Source: Additional coverage at low risk.
 
 from __future__ import annotations
 
+import contextlib
 from datetime import datetime
 
 from loguru import logger
@@ -84,10 +85,8 @@ class JobSpyScraper(BaseScraper):
                     sal_min = row.get("min_amount")
                     sal_max = row.get("max_amount")
                     if sal_min and sal_max:
-                        try:
+                        with contextlib.suppress(ValueError, TypeError):
                             salary_range = f"${int(float(sal_min))//1000}k-${int(float(sal_max))//1000}k/yr"
-                        except (ValueError, TypeError):
-                            pass
 
                     # Description
                     description = str(row.get("description", ""))[:500]

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
+from typing import NamedTuple
 
 from src.config.enums import (
     CompanyStage,
@@ -11,6 +12,12 @@ from src.config.enums import (
     Tier,
     ValidationResult,
 )
+
+
+class CompletenessResult(NamedTuple):
+    """Result of a field-completeness calculation."""
+    score: float  # 0.0 - 1.0
+    missing_fields: list[str]
 
 
 @dataclass
@@ -80,20 +87,67 @@ class Company:
     disqualification_reason: str = ""
     needs_review: bool = False
     data_completeness: float = 0.0  # 0-100%
+    tech_stack: list[str] = field(default_factory=list)
+    ai_nativity: str = ""  # e.g. "AI-native", "AI-enabled", "Not AI"
+    headquarters_city: str = ""
+    headquarters_state: str = ""
 
-    def calculate_completeness(self) -> float:
-        """Calculate what % of important fields are populated."""
-        important_fields = [
-            self.name,
-            self.description,
-            self.hq_location,
-            self.employees or self.employees_range,
-            self.funding_stage != FundingStage.UNKNOWN,
-            self.is_ai_native,
-            self.tier,
-            self.source_portal,
-            self.role,
-        ]
-        filled = sum(1 for f in important_fields if f)
-        self.data_completeness = round(filled / len(important_fields) * 100, 1)
-        return self.data_completeness
+    # -- 15-field completeness ------------------------------------------------
+
+    COMPLETENESS_FIELDS: list[str] = field(
+        default=None, init=False, repr=False,
+    )
+
+    def __post_init__(self) -> None:
+        # Immutable ordered list used by calculate_completeness
+        object.__setattr__(self, "COMPLETENESS_FIELDS", [
+            "name",
+            "website",
+            "linkedin_url",
+            "employees_range",
+            "funding_stage",
+            "funding_amount",
+            "hiring_manager",
+            "role_url",
+            "h1b_status",
+            "salary_range",
+            "tech_stack",
+            "differentiators",
+            "ai_nativity",
+            "headquarters_city",
+            "headquarters_state",
+        ])
+
+    def _is_field_present(self, field_name: str) -> bool:
+        """Return True if the field has a meaningful (non-default/non-empty) value."""
+        value = getattr(self, field_name)
+        # Check enums BEFORE str — FundingStage/H1BStatus inherit from str
+        if isinstance(value, FundingStage):
+            return value != FundingStage.UNKNOWN
+        if isinstance(value, H1BStatus):
+            return value != H1BStatus.UNKNOWN
+        if isinstance(value, list):
+            return len(value) > 0
+        if isinstance(value, str):
+            return bool(value.strip())
+        return bool(value)
+
+    def calculate_completeness(self) -> CompletenessResult:
+        """Calculate what fraction of the 15 important fields are populated.
+
+        Returns a CompletenessResult with:
+        - score: 0.0 to 1.0
+        - missing_fields: list of field names that are empty/default
+        Also updates self.data_completeness (0-100 scale) for backward compat.
+        """
+        missing: list[str] = []
+        filled = 0
+        for fname in self.COMPLETENESS_FIELDS:
+            if self._is_field_present(fname):
+                filled += 1
+            else:
+                missing.append(fname)
+        total = len(self.COMPLETENESS_FIELDS)
+        score = round(filled / total, 4) if total else 0.0
+        self.data_completeness = round(score * 100, 1)
+        return CompletenessResult(score=score, missing_fields=missing)

@@ -1,10 +1,9 @@
 """Tests for company validator and scoring engine."""
 
-import pytest
 
+from src.db.orm import CompanyORM
 from src.validators.company_validator import CompanyValidator, ValidationResult
 from src.validators.scoring_engine import FitScoringEngine
-from src.db.orm import CompanyORM
 
 
 class TestCompanyValidator:
@@ -21,7 +20,7 @@ class TestCompanyValidator:
         """Harvey AI should FAIL — Series F violates funding criteria."""
         report = self.validator.validate(sample_failing_company)
         assert report.result == ValidationResult.FAIL
-        funding_check = [c for c in report.checks if "Seed" in c.name][0]
+        funding_check = next(c for c in report.checks if "Seed" in c.name)
         assert not funding_check.passed
 
     def test_borderline_company(self, sample_borderline_company):
@@ -32,7 +31,7 @@ class TestCompanyValidator:
     def test_tier3_h1b_autopass(self, sample_tier3_company):
         """Tier 3 company should auto-pass H1B check."""
         report = self.validator.validate(sample_tier3_company)
-        h1b_check = [c for c in report.checks if "H1B" in c.name][0]
+        h1b_check = next(c for c in report.checks if "H1B" in c.name)
         assert h1b_check.passed
         assert "auto-pass" in h1b_check.evidence.lower() or "n/a" in h1b_check.evidence.lower()
 
@@ -109,7 +108,7 @@ class TestCharCounter:
         from src.outreach.template_engine import CharCounter
 
         text = "x" * 301
-        valid, count, limit = CharCounter.validate(text, "connection_request")
+        valid, count, _limit = CharCounter.validate(text, "connection_request")
         assert not valid
         assert count == 301
 
@@ -117,7 +116,7 @@ class TestCharCounter:
         from src.outreach.template_engine import CharCounter
 
         text = "x" * 5000
-        valid, count, limit = CharCounter.validate(text, "follow_up")
+        valid, _count, limit = CharCounter.validate(text, "follow_up")
         assert valid
         assert limit is None
 

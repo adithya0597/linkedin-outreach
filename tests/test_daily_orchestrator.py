@@ -2,13 +2,12 @@
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
 from src.db.orm import CompanyORM, OutreachORM
 from src.pipeline.daily_orchestrator import DailyOrchestrator
-
 
 # ---------------------------------------------------------------------------
 # Helpers — mock return values for all 8 stages

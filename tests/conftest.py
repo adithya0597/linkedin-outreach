@@ -13,7 +13,7 @@ os.environ.setdefault("PLAYWRIGHT_BROWSERS_PATH", "/dev/null")
 os.environ.setdefault("PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD", "1")
 
 from sqlalchemy import create_engine
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.orm import sessionmaker
 
 from src.config.enums import SourcePortal
 from src.db.orm import Base, CompanyORM

@@ -1,12 +1,11 @@
 """Tests for LinkedIn Research v2: dedup, expanded titles, score updates, mutual connections."""
 
 from __future__ import annotations
-from datetime import datetime
 
 import pytest
 
 from src.db.orm import CompanyORM, ContactORM
-from src.integrations.linkedin_research import ContactResearcher, TITLE_PRIORITY, SEARCH_TITLES
+from src.integrations.linkedin_research import SEARCH_TITLES, TITLE_PRIORITY, ContactResearcher
 
 
 @pytest.fixture()

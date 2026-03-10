@@ -1,13 +1,10 @@
 """Tests for Alembic migration setup."""
 
 import configparser
-import importlib
-import os
-import tempfile
 from pathlib import Path
 
 import pytest
-from sqlalchemy import create_engine, inspect, text
+from sqlalchemy import create_engine, inspect
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -48,11 +45,12 @@ class TestInitialMigration:
             "migration_001",
             str(ROOT / "alembic" / "versions" / "001_initial_schema.py"),
         )
-        mod = importlib.util.module_from_spec(spec)
+        importlib.util.module_from_spec(spec)
 
         # Alembic op needs a migration context — use direct SA instead
         # We'll use alembic's command API for a proper test
         from alembic.config import Config
+
         from alembic import command
 
         cfg = Config(str(ROOT / "alembic.ini"))
@@ -75,9 +73,9 @@ class TestInitialMigration:
         tables = set(inspector.get_table_names()) - {"alembic_version"}
         assert len(tables) == 0, f"Tables remain after downgrade: {tables}"
 
-    def test_target_metadata_has_six_tables(self):
+    def test_target_metadata_has_all_tables(self):
         from src.db.orm import Base
 
         table_names = set(Base.metadata.tables.keys())
-        expected = {"companies", "contacts", "job_postings", "h1b_records", "scans", "outreach"}
+        expected = {"companies", "contacts", "job_postings", "h1b_records", "scans", "outreach", "warmup_actions", "warmup_sequences"}
         assert expected == table_names, f"Metadata mismatch: got {table_names}"

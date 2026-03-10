@@ -4,8 +4,8 @@ import os
 import tempfile
 import time
 
-import yaml
 import pytest
+import yaml
 
 from src.pipeline.scheduler import ScanScheduler
 

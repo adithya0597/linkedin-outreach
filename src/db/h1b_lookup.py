@@ -6,7 +6,6 @@ from loguru import logger
 
 from src.db.orm import CompanyORM
 
-
 # Verified via Frog Hire (primary), H1BGrader, MyVisaJobs (secondary)
 KNOWN_H1B_STATUSES: dict[str, str] = {
     "Kumo AI": "Unknown",

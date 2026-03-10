@@ -10,6 +10,7 @@ Tier D — Zero Risk: Reads structured data that sites intentionally expose.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import re
 from datetime import datetime
@@ -157,9 +158,8 @@ def _parse_job_posting(data: dict, source_url: str) -> JobPosting | None:
     # Work model
     work_model = ""
     job_location_type = data.get("jobLocationType", "")
-    if job_location_type:
-        if "remote" in str(job_location_type).lower():
-            work_model = "remote"
+    if job_location_type and "remote" in str(job_location_type).lower():
+        work_model = "remote"
     employment_type = data.get("employmentType", "")
     if isinstance(employment_type, list):
         employment_type = employment_type[0] if employment_type else ""
@@ -189,10 +189,8 @@ def _parse_job_posting(data: dict, source_url: str) -> JobPosting | None:
     posted_date = None
     date_posted = data.get("datePosted", "")
     if date_posted:
-        try:
+        with contextlib.suppress(ValueError, TypeError):
             posted_date = datetime.fromisoformat(date_posted.replace("Z", "+00:00"))
-        except (ValueError, TypeError):
-            pass
 
     return JobPosting(
         title=title.strip(),

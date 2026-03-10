@@ -4,8 +4,6 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from src.cli._db import db_session
-
 app = typer.Typer()
 console = Console()
 

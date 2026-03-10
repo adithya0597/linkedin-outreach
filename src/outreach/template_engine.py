@@ -50,7 +50,7 @@ class OutreachTemplateEngine:
         template = self.env.get_template(template_name)
         rendered = template.render(**context).strip()
 
-        is_valid, count, limit = CharCounter.validate(rendered, message_type)
+        is_valid, count, _limit = CharCounter.validate(rendered, message_type)
         return rendered, is_valid, count
 
     def list_templates(self) -> list[str]:

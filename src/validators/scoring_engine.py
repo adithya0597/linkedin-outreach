@@ -6,7 +6,6 @@ from pathlib import Path
 
 import yaml
 
-from src.config.enums import FundingStage, H1BStatus
 from src.db.orm import CompanyORM
 from src.models.company import ScoreBreakdown
 
@@ -180,7 +179,7 @@ class FitScoringEngine:
 
     def batch_score_semantic(
         self, companies: list[CompanyORM]
-    ) -> list[tuple[CompanyORM, "ScoreBreakdown"]]:
+    ) -> list[tuple[CompanyORM, ScoreBreakdown]]:
         """Score all companies with semantic scoring and domain match, sorted by total desc."""
         results = [(c, self.score(c, include_semantic=True)) for c in companies]
         results.sort(key=lambda x: x[1].total, reverse=True)

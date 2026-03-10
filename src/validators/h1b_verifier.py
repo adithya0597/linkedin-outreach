@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import logging
 import os
@@ -14,7 +15,7 @@ from urllib.parse import quote_plus
 import httpx
 
 from src.config.enums import H1BStatus, PortalTier, SourcePortal
-from src.db.orm import CompanyORM, H1BORM
+from src.db.orm import H1BORM, CompanyORM
 from src.models.h1b import H1BRecord
 
 logger = logging.getLogger(__name__)
@@ -304,10 +305,8 @@ class MyVisaJobsClient:
             r"(?:Approval|Certified)\s*(?:Rate)?[:\s]*([\d.]+)\s*%", html, re.IGNORECASE
         )
         if rate_match:
-            try:
+            with contextlib.suppress(ValueError):
                 record.approval_rate = float(rate_match.group(1))
-            except ValueError:
-                pass
 
         # Determine status
         if record.lca_count or record.approval_rate is not None:
@@ -348,7 +347,7 @@ def _build_consensus(
     votes: list[tuple[str, H1BStatus]] = []
     details: list[dict] = []
 
-    for label, record in zip(source_labels, results):
+    for label, record in zip(source_labels, results, strict=False):
         if record is None:
             votes.append((label, H1BStatus.UNKNOWN))
             details.append({"source": label, "status": "no_data", "record": None})
@@ -370,7 +369,7 @@ def _build_consensus(
             return winner, f"consensus({','.join(sources_agreeing)})", details
         elif count == 1 and len(status_counts) == 1:
             # Only one source returned data, the others had no data
-            source_label = [label for label, s in votes if s == winner][0]
+            source_label = next(label for label, s in votes if s == winner)
             return winner, f"single({source_label})", details
 
     # Check for disagreement (multiple non-UNKNOWN statuses that don't agree)
@@ -511,7 +510,7 @@ class H1BVerifier:
 
         # Persist results if session provided
         if session is not None:
-            for record, company in zip(results, companies):
+            for record, company in zip(results, companies, strict=False):
                 # Save H1BORM record
                 h1b_orm = H1BORM(
                     company_id=company.id,

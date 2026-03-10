@@ -11,7 +11,6 @@ from src.db.orm import Base, CompanyORM, ContactORM, OutreachORM
 from src.integrations.notion_contacts import NotionContactSchemas, NotionContactSync
 from src.integrations.notion_sync import NotionCRM
 
-
 # ---- Fixtures ----
 
 

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from datetime import datetime
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -12,15 +12,14 @@ from src.config.enums import H1BStatus, PortalTier
 from src.db.orm import CompanyORM
 from src.models.h1b import H1BRecord
 from src.validators.h1b_verifier import (
-    H1BVerifier,
     FrogHireClient,
     H1BGraderClient,
+    H1BVerifier,
     MyVisaJobsClient,
     _build_consensus,
     _resolve_portal_tier,
     classify_h1b_text,
 )
-
 
 # ---------------------------------------------------------------------------
 # classify_h1b_text — regex hardening
@@ -152,7 +151,7 @@ class TestBuildConsensus:
             self._make_record(H1BStatus.CONFIRMED, "B"),
             self._make_record(H1BStatus.CONFIRMED, "C"),
         ]
-        status, source, details = _build_consensus(results, ["A", "B", "C"])
+        status, source, _details = _build_consensus(results, ["A", "B", "C"])
         assert status == H1BStatus.CONFIRMED
         assert "consensus" in source
 
@@ -163,7 +162,7 @@ class TestBuildConsensus:
             self._make_record(H1BStatus.EXPLICIT_NO, "B"),
             self._make_record(H1BStatus.CONFIRMED, "C"),
         ]
-        status, source, details = _build_consensus(results, ["A", "B", "C"])
+        status, source, _details = _build_consensus(results, ["A", "B", "C"])
         assert status == H1BStatus.CONFIRMED
         assert "consensus" in source
 
@@ -174,14 +173,14 @@ class TestBuildConsensus:
             self._make_record(H1BStatus.CONFIRMED, "B"),
             self._make_record(H1BStatus.EXPLICIT_NO, "C"),
         ]
-        status, source, details = _build_consensus(results, ["A", "B", "C"])
+        status, source, _details = _build_consensus(results, ["A", "B", "C"])
         assert status == H1BStatus.EXPLICIT_NO
         assert "consensus" in source
 
     def test_all_none(self):
         """All sources return None -> UNKNOWN."""
         results = [None, None, None]
-        status, source, details = _build_consensus(results, ["A", "B", "C"])
+        status, source, _details = _build_consensus(results, ["A", "B", "C"])
         assert status == H1BStatus.UNKNOWN
         assert source == "no_consensus"
 
@@ -192,7 +191,7 @@ class TestBuildConsensus:
             None,
             None,
         ]
-        status, source, details = _build_consensus(results, ["A", "B", "C"])
+        status, source, _details = _build_consensus(results, ["A", "B", "C"])
         assert status == H1BStatus.CONFIRMED
         assert "single" in source
 
@@ -203,7 +202,7 @@ class TestBuildConsensus:
             self._make_record(H1BStatus.EXPLICIT_NO, "B"),
             None,
         ]
-        status, source, details = _build_consensus(results, ["A", "B", "C"])
+        status, source, _details = _build_consensus(results, ["A", "B", "C"])
         assert status == H1BStatus.UNKNOWN
         assert source == "no_consensus"
 
@@ -214,7 +213,7 @@ class TestBuildConsensus:
             self._make_record(H1BStatus.EXPLICIT_NO, "B"),
             None,
         ]
-        status, source, details = _build_consensus(results, ["A", "B", "C"])
+        _status, _source, details = _build_consensus(results, ["A", "B", "C"])
         assert len(details) == 3
         assert details[0]["status"] == "Confirmed"
         assert details[1]["status"] == "Explicit No"
@@ -227,7 +226,7 @@ class TestBuildConsensus:
             None,
             self._make_record(H1BStatus.LIKELY, "C"),
         ]
-        status, source, details = _build_consensus(results, ["A", "B", "C"])
+        status, _source, _details = _build_consensus(results, ["A", "B", "C"])
         assert status == H1BStatus.LIKELY
 
 
@@ -300,7 +299,7 @@ class TestH1BVerifier:
     @pytest.mark.asyncio
     async def test_all_sources_confirm(self):
         """All 3 sources return CONFIRMED -> consensus CONFIRMED."""
-        record = H1BRecord(
+        H1BRecord(
             company_name="TestCo",
             status=H1BStatus.CONFIRMED,
             source="test",
@@ -449,7 +448,7 @@ class TestH1BVerifier:
         myvisajobs.search = slow_myvisajobs
 
         verifier = H1BVerifier(froghire=froghire, h1bgrader=h1bgrader, myvisajobs=myvisajobs)
-        result = await verifier.verify(self._make_company())
+        await verifier.verify(self._make_company())
 
         # All 3 starts should happen before any end (parallel execution)
         starts = [t for name, t in call_order if name.endswith("_start")]

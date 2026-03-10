@@ -1,7 +1,8 @@
 """Tests for scheduler upgrade — follow-up alerts and smart scan."""
 
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock
 
 from src.pipeline.scheduler import ScanScheduler
 
@@ -65,8 +66,9 @@ def test_followup_alerts_calls_manager(
 def test_followup_alerts_logs_overdue_warnings(
     mock_engine, mock_init, mock_session, mock_alert, scheduler
 ):
-    from loguru import logger
     import io
+
+    from loguru import logger
 
     mock_sess = MagicMock()
     mock_session.return_value = mock_sess
@@ -106,7 +108,6 @@ def test_smart_scan_uses_orchestrator(
     mock_session.return_value = mock_sess
 
     # run_smart_scan is async, mock it as a coroutine
-    import asyncio
 
     async def fake_scan(**kwargs):
         pass

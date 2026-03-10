@@ -5,10 +5,9 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from src.config.enums import H1BStatus
-from src.db.orm import Base, CompanyORM
 from src.db.h1b_lookup import KNOWN_H1B_STATUSES, apply_known_statuses
+from src.db.orm import Base, CompanyORM
 from src.db.seed import parse_h1b_status
-
 
 # ---------------------------------------------------------------------------
 # Fixtures

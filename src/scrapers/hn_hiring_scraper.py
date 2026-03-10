@@ -8,6 +8,7 @@ Tier D — New Source: 58K+ startup jobs, zero risk (public API).
 
 from __future__ import annotations
 
+import contextlib
 import re
 from datetime import datetime
 
@@ -140,10 +141,8 @@ class HNHiringScraper(HttpxScraper):
         posted_date = None
         created = item.get("created_at", "") or item.get("date", "")
         if created:
-            try:
+            with contextlib.suppress(ValueError, TypeError):
                 posted_date = datetime.fromisoformat(created.replace("Z", "+00:00"))
-            except (ValueError, TypeError):
-                pass
 
         return JobPosting(
             title=title[:200],

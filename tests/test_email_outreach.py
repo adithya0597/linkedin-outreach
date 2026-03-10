@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 import pytest
 
 from src.db.orm import CompanyORM, ContactORM, OutreachORM
-from src.integrations.email_outreach import STALE_THRESHOLD_DAYS, EmailOutreach
+from src.integrations.email_outreach import EmailOutreach
 
 
 @pytest.fixture()

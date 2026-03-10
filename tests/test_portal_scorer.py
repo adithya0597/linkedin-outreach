@@ -8,7 +8,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from src.db.orm import Base, ScanORM
-from src.validators.portal_scorer import PortalScore, PortalScorer
+from src.validators.portal_scorer import PortalScorer
 
 
 @pytest.fixture

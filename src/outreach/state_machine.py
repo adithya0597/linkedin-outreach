@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from loguru import logger
 from sqlalchemy.orm import Session
 
-from src.db.orm import CompanyORM, OutreachORM
+from src.db.orm import OutreachORM
 
 # Valid state transitions: current_state -> set of allowed next states
 VALID_TRANSITIONS: dict[str, set[str]] = {
@@ -118,7 +118,7 @@ class OutreachStateMachine:
 
         # Build audit entry
         audit_entry = {
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "from_stage": current,
             "to_stage": new_stage,
             "metadata": metadata or {},
@@ -138,9 +138,9 @@ class OutreachStateMachine:
 
         # Update timestamps based on transition
         if new_stage == "Sent":
-            record.sent_at = datetime.now(timezone.utc)
+            record.sent_at = datetime.now(UTC)
         elif new_stage in ("Responded", "Interview", "Declined", "Offer", "Rejected"):
-            record.response_at = datetime.now(timezone.utc)
+            record.response_at = datetime.now(UTC)
 
         self.session.commit()
         logger.info(

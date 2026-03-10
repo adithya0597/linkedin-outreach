@@ -6,6 +6,7 @@ for the main job listing. Follows the HiringCafeHttpxScraper pattern.
 
 from __future__ import annotations
 
+import contextlib
 import re
 from datetime import datetime
 
@@ -17,7 +18,6 @@ from src.config.enums import SourcePortal
 from src.models.job_posting import JobPosting
 from src.scrapers.httpx_scraper import HttpxScraper
 from src.scrapers.rate_limiter import RateLimiter
-
 
 # ---------------------------------------------------------------------------
 # Shared helpers
@@ -218,10 +218,8 @@ class AshbyScraper(HttpxScraper):
                 posted_date = None
                 published_at = job.get("publishedAt", "")
                 if published_at:
-                    try:
+                    with contextlib.suppress(ValueError, TypeError):
                         posted_date = datetime.fromisoformat(published_at.replace("Z", "+00:00"))
-                    except (ValueError, TypeError):
-                        pass
 
                 # Derive company name from slug key
                 company_name = slug_key.replace("_", " ").title()
@@ -323,10 +321,8 @@ class GreenhouseScraper(HttpxScraper):
                 posted_date = None
                 updated_at = job.get("updated_at", "")
                 if updated_at:
-                    try:
+                    with contextlib.suppress(ValueError, TypeError):
                         posted_date = datetime.fromisoformat(updated_at.replace("Z", "+00:00"))
-                    except (ValueError, TypeError):
-                        pass
 
                 # Derive company name from slug key
                 company_name = slug_key.replace("_", " ").title()

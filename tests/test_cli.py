@@ -5,9 +5,8 @@ at the source module level (e.g., src.scrapers.registry) rather than
 at src.cli.main.
 """
 
-from unittest.mock import MagicMock, patch, AsyncMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytest
 from typer.testing import CliRunner
 
 from src.cli.main import app
@@ -209,7 +208,7 @@ class TestH1BCommand:
         with (
             patch("src.db.database.get_engine"),
             patch("src.db.database.get_session") as mock_session,
-            patch("src.validators.h1b_verifier.H1BVerifier") as mock_v_cls,
+            patch("src.validators.h1b_verifier.H1BVerifier"),
             patch("asyncio.run", return_value=mock_record),
         ):
             mock_session.return_value.query.return_value.filter.return_value.first.return_value = mock_company

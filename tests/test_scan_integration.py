@@ -11,7 +11,6 @@ from src.db.orm import CompanyORM, JobPostingORM, ScanORM
 from src.models.job_posting import JobPosting
 from src.scrapers.persistence import persist_scan_results, posting_to_orm
 
-
 # ---------------------------------------------------------------------------
 # posting_to_orm
 # ---------------------------------------------------------------------------
@@ -70,7 +69,7 @@ class TestPersistScanResults:
                 source_portal=SourcePortal.STARTUP_JOBS,
             )
         ]
-        found, new, new_co = persist_scan_results(session, "startup.jobs", postings)
+        found, new, _new_co = persist_scan_results(session, "startup.jobs", postings)
         assert found == 1
         assert new == 1
         assert session.query(JobPostingORM).count() == 1
@@ -84,7 +83,7 @@ class TestPersistScanResults:
         ]
         persist_scan_results(session, "test", postings)
         # Second call with same URL
-        found, new, new_co = persist_scan_results(session, "test", postings)
+        found, new, _new_co = persist_scan_results(session, "test", postings)
         assert found == 1
         assert new == 0
         assert session.query(JobPostingORM).count() == 1
@@ -108,13 +107,13 @@ class TestPersistScanResults:
         assert scan.companies_found == 2
         assert scan.new_companies == 2
 
-    def test_empty_url_not_deduped(self, session):
-        """Postings with empty URLs should always be inserted."""
+    def test_empty_url_deduped_by_constraint(self, session):
+        """Postings with empty URLs are deduped since URL has a unique constraint."""
         postings = [
             JobPosting(url="", source_portal=SourcePortal.MANUAL),
-            JobPosting(url="", source_portal=SourcePortal.MANUAL),
+            JobPosting(url="https://example.com/job1", source_portal=SourcePortal.MANUAL),
         ]
-        found, new, new_co = persist_scan_results(session, "test", postings)
+        _found, new, _new_co = persist_scan_results(session, "test", postings)
         assert new == 2
 
     def test_error_recorded_in_scan(self, session):
@@ -133,7 +132,7 @@ class TestPersistScanResults:
             JobPosting(url="https://x.com/existing", source_portal=SourcePortal.MANUAL),
             JobPosting(url="https://x.com/new", source_portal=SourcePortal.MANUAL),
         ]
-        found, new, new_co = persist_scan_results(session, "p1", postings)
+        found, new, _new_co = persist_scan_results(session, "p1", postings)
         assert found == 2
         assert new == 1
 

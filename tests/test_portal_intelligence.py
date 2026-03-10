@@ -4,14 +4,13 @@ from __future__ import annotations
 
 import json
 from datetime import datetime
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 import yaml
 
 from src.db.orm import ScanORM
-from src.pipeline.auto_promotion import HISTORY_PATH, PortalAutoPromoter
+from src.pipeline.auto_promotion import PortalAutoPromoter
 from src.pipeline.health_monitor import HealthMonitor
 
 

@@ -11,11 +11,9 @@ import pytest
 from src.config.enums import PortalTier, SourcePortal
 from src.models.job_posting import JobPosting
 from src.scrapers.algolia_scraper import (
-    AlgoliaBaseScraper,
     WTTJAlgoliaScraper,
     YCAlgoliaScraper,
 )
-
 
 # ---------------------------------------------------------------------------
 # Fixtures: Algolia response payloads

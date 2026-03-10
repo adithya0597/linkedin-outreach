@@ -4,10 +4,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
-from tenacity import RetryError
 
 from src.scrapers.retry import _is_retryable_status, notion_retry, scraper_retry
-
 
 # ---------------------------------------------------------------------------
 # scraper_retry

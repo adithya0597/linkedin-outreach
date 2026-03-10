@@ -8,8 +8,8 @@ test_notion_sync_extended.py, test_notion_batch_sync.py.
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timedelta
-from unittest.mock import AsyncMock, MagicMock, patch
+from datetime import datetime
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from sqlalchemy import create_engine
@@ -17,7 +17,6 @@ from sqlalchemy.orm import sessionmaker
 
 from src.db.orm import Base, CompanyORM
 from src.integrations.notion_sync import NotionCRM, NotionSchemas
-
 
 # ===========================================================================
 # Fixtures

@@ -8,7 +8,6 @@ from src.config.enums import SourcePortal
 from src.models.job_posting import JobPosting
 from src.scrapers.mcp_scraper import MCPPlaywrightScraper
 
-
 # ---------------------------------------------------------------------------
 # MCPPlaywrightScraper tests
 # ---------------------------------------------------------------------------

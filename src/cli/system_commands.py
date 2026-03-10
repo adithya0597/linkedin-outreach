@@ -1,9 +1,10 @@
-"""System-level CLI commands: audit, dashboard, stats, priority-report, db-migrate, theme, scheduler-start."""
+"""System-level CLI commands: audit, dashboard, stats, priority-report, completeness-report, db-migrate, theme, scheduler-start."""
 
 from pathlib import Path
 
 import typer
 from rich.console import Console
+from rich.panel import Panel
 from rich.table import Table
 
 app = typer.Typer()
@@ -31,7 +32,7 @@ def dashboard():
     import sys
 
     dashboard_path = Path(__file__).parent.parent / "dashboard" / "app.py"
-    console.print(f"[bold]Launching dashboard...[/bold]")
+    console.print("[bold]Launching dashboard...[/bold]")
     subprocess.run([sys.executable, "-m", "streamlit", "run", str(dashboard_path)])
 
 
@@ -74,6 +75,134 @@ def stats():
     session.close()
 
 
+def _orm_to_company(orm: "CompanyORM") -> "Company":
+    """Convert a CompanyORM row to a Company dataclass for quality gate logic."""
+    from src.config.enums import (
+        CompanyStage,
+        FundingStage,
+        H1BStatus,
+        SourcePortal,
+        Tier,
+        ValidationResult,
+    )
+    from src.models.company import Company
+
+    def _safe_enum(enum_cls, value, default):
+        try:
+            return enum_cls(value)
+        except (ValueError, KeyError):
+            return default
+
+    return Company(
+        id=orm.id,
+        name=orm.name or "",
+        description=orm.description or "",
+        hq_location=orm.hq_location or "",
+        employees=orm.employees,
+        employees_range=orm.employees_range or "",
+        funding_stage=_safe_enum(FundingStage, orm.funding_stage, FundingStage.UNKNOWN),
+        funding_amount=orm.funding_amount or "",
+        total_raised=orm.total_raised or "",
+        valuation=orm.valuation or "",
+        founded_year=orm.founded_year,
+        website=orm.website or "",
+        careers_url=orm.careers_url or "",
+        linkedin_url=orm.linkedin_url or "",
+        is_ai_native=bool(orm.is_ai_native),
+        ai_product_description=orm.ai_product_description or "",
+        tier=_safe_enum(Tier, orm.tier, Tier.TIER_5),
+        source_portal=_safe_enum(SourcePortal, orm.source_portal, SourcePortal.MANUAL),
+        h1b_status=_safe_enum(H1BStatus, orm.h1b_status, H1BStatus.UNKNOWN),
+        h1b_source=orm.h1b_source or "",
+        h1b_details=orm.h1b_details or "",
+        fit_score=orm.fit_score,
+        stage=_safe_enum(CompanyStage, orm.stage, CompanyStage.TO_APPLY),
+        validation_result=_safe_enum(ValidationResult, orm.validation_result, None) if orm.validation_result else None,
+        validation_notes=orm.validation_notes or "",
+        differentiators=[d.strip() for d in (orm.differentiators or "").split("|") if d.strip()],
+        role=orm.role or "",
+        role_url=orm.role_url or "",
+        salary_range=orm.salary_range or "",
+        notes=orm.notes or "",
+        hiring_manager=orm.hiring_manager or "",
+        hiring_manager_linkedin=orm.hiring_manager_linkedin or "",
+        why_fit=orm.why_fit or "",
+        best_stats=orm.best_stats or "",
+        action=orm.action or "",
+        is_disqualified=bool(orm.is_disqualified),
+        disqualification_reason=orm.disqualification_reason or "",
+        needs_review=bool(orm.needs_review),
+        data_completeness=orm.data_completeness or 0.0,
+    )
+
+
+@app.command(name="completeness-report")
+def completeness_report(
+    min_score: float = typer.Option(0.0, "--min-score", help="Show only companies below this completeness threshold (0.0–1.0)"),
+):
+    """Show data completeness report across all companies."""
+    from src.cli._db import db_session
+    from src.db.orm import CompanyORM
+    from src.pipeline.quality_gates import get_quality_report
+
+    with db_session() as session:
+        orm_rows = session.query(CompanyORM).all()
+        companies = [_orm_to_company(row) for row in orm_rows]
+
+        report = get_quality_report(companies)
+
+        # -- Summary panel --
+        summary = (
+            f"[bold]Total Companies:[/bold] {report.total_companies}\n"
+            f"[bold]Avg Completeness:[/bold] {report.avg_completeness:.1%}"
+        )
+        console.print(Panel(summary, title="Completeness Summary", border_style="green"))
+
+        # -- Bucket table --
+        bucket_table = Table(title="Completeness Distribution")
+        bucket_table.add_column("Range", style="bold")
+        bucket_table.add_column("Count", justify="right")
+        bucket_table.add_row("0 - 25%", str(report.bucket_0_25))
+        bucket_table.add_row("25 - 50%", str(report.bucket_25_50))
+        bucket_table.add_row("50 - 75%", str(report.bucket_50_75))
+        bucket_table.add_row("75 - 100%", str(report.bucket_75_100))
+        console.print(bucket_table)
+
+        # -- Top 10 missing fields --
+        if report.most_common_missing:
+            missing_table = Table(title="Top 10 Missing Fields")
+            missing_table.add_column("#", justify="right")
+            missing_table.add_column("Field", style="bold")
+            missing_table.add_column("Missing In", justify="right")
+            for i, (field_name, count) in enumerate(report.most_common_missing[:10], 1):
+                missing_table.add_row(str(i), field_name, str(count))
+            console.print(missing_table)
+
+        # -- Optional: show companies below threshold --
+        if min_score > 0.0:
+            low_companies = []
+            for c in companies:
+                result = c.calculate_completeness()
+                if result.score < min_score:
+                    low_companies.append((c.name, result.score, result.missing_fields))
+            if low_companies:
+                low_table = Table(title=f"Companies Below {min_score:.0%} Completeness")
+                low_table.add_column("#", justify="right")
+                low_table.add_column("Company", style="bold")
+                low_table.add_column("Score", justify="right")
+                low_table.add_column("Missing Fields")
+                for i, (name, score, missing) in enumerate(sorted(low_companies, key=lambda x: x[1]), 1):
+                    low_table.add_row(
+                        str(i),
+                        name,
+                        f"{score:.0%}",
+                        ", ".join(missing[:5]) + ("..." if len(missing) > 5 else ""),
+                    )
+                console.print(low_table)
+            else:
+                console.print(f"[green]All companies meet the {min_score:.0%} threshold.[/green]")
+
+
 @app.command(name="priority-report")
 def priority_report(
     semantic: bool = typer.Option(False, "--semantic", help="Include semantic scoring"),
@@ -96,7 +225,7 @@ def priority_report(
         console.print(report)
     else:
         matrix = reporter.generate_priority_matrix(include_semantic=semantic)
-        console.print(f"\n[bold]Priority Matrix[/bold]")
+        console.print("\n[bold]Priority Matrix[/bold]")
         console.print(f"  Total scored: {matrix['total_scored']}")
         console.print(f"  Average score: {matrix['avg_score']}")
 

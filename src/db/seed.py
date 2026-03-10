@@ -14,7 +14,6 @@ from src.config.enums import (
     H1BStatus,
     SourcePortal,
     Tier,
-    ValidationResult,
 )
 from src.db.database import get_engine, get_session, init_db
 from src.db.orm import CompanyORM

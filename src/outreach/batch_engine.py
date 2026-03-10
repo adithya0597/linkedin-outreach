@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Optional
 
 from loguru import logger
 from sqlalchemy.orm import Session
@@ -46,7 +45,7 @@ class BatchOutreachEngine:
         self.engine = OutreachTemplateEngine()
         self.sequence_builder = SequenceBuilder()
 
-    def _get_primary_contact(self, company: CompanyORM) -> Optional[ContactORM]:
+    def _get_primary_contact(self, company: CompanyORM) -> ContactORM | None:
         """Get primary contact for a company (highest score)."""
         return (
             self.session.query(ContactORM)
@@ -56,7 +55,7 @@ class BatchOutreachEngine:
         )
 
     def _select_template(
-        self, message_type: str, contact: Optional[ContactORM], existing_templates: list[str]
+        self, message_type: str, contact: ContactORM | None, existing_templates: list[str]
     ) -> str:
         """Select template, rotating to avoid duplicates. Picks role-appropriate template first."""
         if message_type == "connection_request":
@@ -84,8 +83,8 @@ class BatchOutreachEngine:
     def draft_for_company(
         self,
         company: CompanyORM,
-        contact: Optional[ContactORM] = None,
-        template_types: Optional[list[str]] = None,
+        contact: ContactORM | None = None,
+        template_types: list[str] | None = None,
     ) -> list[OutreachORM]:
         """Draft outreach messages for a single company.
 
@@ -151,9 +150,9 @@ class BatchOutreachEngine:
 
     def draft_all(
         self,
-        tier: Optional[str] = None,
-        limit: Optional[int] = None,
-        template_types: Optional[list[str]] = None,
+        tier: str | None = None,
+        limit: int | None = None,
+        template_types: list[str] | None = None,
     ) -> dict:
         """Batch draft outreach for qualifying companies.
 
@@ -203,7 +202,7 @@ class BatchOutreachEngine:
         self,
         company_name: str,
         contact_name: str,
-        start_date: Optional[str] = None,
+        start_date: str | None = None,
     ) -> list[dict]:
         """Build a 14-day outreach sequence with template recommendations.
 

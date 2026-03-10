@@ -7,7 +7,6 @@ import pytest
 from src.db.orm import CompanyORM, OutreachORM
 from src.outreach.state_machine import (
     MAX_RESEND_CYCLES,
-    VALID_TRANSITIONS,
     InvalidTransitionError,
     OutreachStateMachine,
 )

@@ -13,7 +13,6 @@ The __NEXT_DATA__ JSON contains Apollo GraphQL cache with all page data.
 from __future__ import annotations
 
 import json
-import re
 from datetime import datetime
 from urllib.parse import quote_plus
 
@@ -332,7 +331,7 @@ class WellfoundNextDataScraper(HttpxScraper):
 
                 # Try to find job details in Apollo state or direct props
                 apollo = page_props.get("__APOLLO_STATE__", {})
-                for key, value in apollo.items():
+                for _key, value in apollo.items():
                     if isinstance(value, dict) and value.get("__typename") in ("JobListing", "Job"):
                         posting = self._item_to_posting(value)
                         if posting:

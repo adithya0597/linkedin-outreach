@@ -1,13 +1,11 @@
 """Tests for circuit breaker + scraper exception hardening."""
 import asyncio
 import logging
-import time
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from src.scrapers.circuit_breaker import CircuitBreaker, CircuitOpenError, CircuitState
-
 
 # ---------------------------------------------------------------------------
 # Circuit breaker core tests
@@ -206,8 +204,9 @@ async def test_hn_hiring_json_parse_logs_on_error(caplog):
 @pytest.mark.asyncio
 async def test_hn_hiring_algolia_fallback_logs_on_error(caplog):
     """Verify _search_hn_algolia logs failures."""
-    from src.scrapers.hn_hiring_scraper import HNHiringScraper
     import httpx
+
+    from src.scrapers.hn_hiring_scraper import HNHiringScraper
 
     scraper = HNHiringScraper()
     mock_client = AsyncMock()

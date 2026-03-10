@@ -10,7 +10,6 @@ import pytest
 from src.config.enums import PortalTier, SourcePortal
 from src.models.job_posting import JobPosting
 
-
 # ---------------------------------------------------------------------------
 # HTML fixtures matching the real portal structures
 # ---------------------------------------------------------------------------
@@ -608,7 +607,7 @@ class TestHttpxScraperBase:
 
         scraper = StartupJobsScraper(rate_limiter=fast_rate_limiter)
         # Force client creation
-        client = await scraper._get_client()
+        await scraper._get_client()
         assert scraper._client is not None
         await scraper.close()
         assert scraper._client is None

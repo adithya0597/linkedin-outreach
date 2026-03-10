@@ -10,9 +10,7 @@ protection (Jobright 4/10, TrueUp 4/10).
 
 from __future__ import annotations
 
-import asyncio
 import os
-import random
 from datetime import datetime
 from urllib.parse import quote_plus
 
@@ -122,7 +120,7 @@ class JobrightPatchrightScraper(PatchrightScraper):
         results: list[JobPosting] = []
 
         try:
-            ctx = await self._launch()
+            await self._launch()
             page, behavior = await self._new_page_with_behavior()
 
             for kw in keywords:
@@ -227,7 +225,7 @@ class TrueUpPatchrightScraper(PatchrightScraper):
         results: list[JobPosting] = []
 
         try:
-            ctx = await self._launch()
+            await self._launch()
             page, behavior = await self._new_page_with_behavior()
 
             for kw in keywords:

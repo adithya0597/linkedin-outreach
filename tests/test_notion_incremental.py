@@ -2,8 +2,6 @@
 
 import json
 
-import pytest
-
 from src.integrations.notion_incremental import NotionSyncState
 
 

@@ -8,7 +8,6 @@ from loguru import logger
 from sqlalchemy.orm import Session
 
 from src.db.orm import CompanyORM, OutreachORM
-from src.outreach.constants import STEP_INDEX as STEP_ORDER
 from src.outreach.constants import STEP_ORDER as ALL_STEPS
 
 

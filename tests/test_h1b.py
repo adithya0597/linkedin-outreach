@@ -2,13 +2,12 @@
 
 from __future__ import annotations
 
-from datetime import datetime
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock
 
 import pytest
 
 from src.config.enums import H1BStatus, PortalTier
-from src.db.orm import CompanyORM, H1BORM
+from src.db.orm import H1BORM, CompanyORM
 from src.models.h1b import H1BRecord
 from src.validators.h1b_verifier import (
     FrogHireClient,
@@ -17,7 +16,6 @@ from src.validators.h1b_verifier import (
     MyVisaJobsClient,
     _resolve_portal_tier,
 )
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -60,21 +58,21 @@ def tier1_company() -> CompanyORM:
 @pytest.fixture
 def mock_froghire() -> FrogHireClient:
     client = FrogHireClient()
-    client.search = AsyncMock()
+    client.search = AsyncMock(return_value=None)
     return client
 
 
 @pytest.fixture
 def mock_h1bgrader() -> H1BGraderClient:
     client = H1BGraderClient()
-    client.search = AsyncMock()
+    client.search = AsyncMock(return_value=None)
     return client
 
 
 @pytest.fixture
 def mock_myvisajobs() -> MyVisaJobsClient:
     client = MyVisaJobsClient()
-    client.search = AsyncMock()
+    client.search = AsyncMock(return_value=None)
     return client
 
 
@@ -127,13 +125,13 @@ async def test_tier3_auto_pass_other_portals(verifier, mock_froghire):
 
 
 # ---------------------------------------------------------------------------
-# test_waterfall_order
+# test_parallel_consensus
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
-async def test_waterfall_froghire_first(verifier, tier2_company, mock_froghire, mock_h1bgrader, mock_myvisajobs):
-    """FrogHire is tried first; if it returns data, H1BGrader and MyVisaJobs are skipped."""
+async def test_single_source_froghire(verifier, tier2_company, mock_froghire, mock_h1bgrader, mock_myvisajobs):
+    """Only FrogHire returns data → single(Frog Hire) consensus."""
     froghire_record = H1BRecord(
         company_name="LlamaIndex",
         status=H1BStatus.CONFIRMED,
@@ -146,17 +144,17 @@ async def test_waterfall_froghire_first(verifier, tier2_company, mock_froghire, 
     record = await verifier.verify(tier2_company)
 
     assert record.status == H1BStatus.CONFIRMED
-    assert record.source == "Frog Hire"
+    assert record.source == "single(Frog Hire)"
     assert record.company_id == 2
+    # All 3 sources called in parallel
     mock_froghire.search.assert_called_once_with("LlamaIndex")
-    mock_h1bgrader.search.assert_not_called()
-    mock_myvisajobs.search.assert_not_called()
+    mock_h1bgrader.search.assert_called_once_with("LlamaIndex")
+    mock_myvisajobs.search.assert_called_once_with("LlamaIndex")
 
 
 @pytest.mark.asyncio
-async def test_waterfall_falls_to_h1bgrader(verifier, tier2_company, mock_froghire, mock_h1bgrader, mock_myvisajobs):
-    """If FrogHire returns None, H1BGrader is tried next."""
-    mock_froghire.search.return_value = None
+async def test_single_source_h1bgrader(verifier, tier2_company, mock_froghire, mock_h1bgrader, mock_myvisajobs):
+    """Only H1BGrader returns data → single(H1BGrader) consensus."""
     h1bgrader_record = H1BRecord(
         company_name="LlamaIndex",
         status=H1BStatus.CONFIRMED,
@@ -168,17 +166,16 @@ async def test_waterfall_falls_to_h1bgrader(verifier, tier2_company, mock_froghi
     record = await verifier.verify(tier2_company)
 
     assert record.status == H1BStatus.CONFIRMED
-    assert record.source == "H1BGrader"
+    assert record.source == "single(H1BGrader)"
+    # All 3 sources called in parallel
     mock_froghire.search.assert_called_once()
     mock_h1bgrader.search.assert_called_once_with("LlamaIndex")
-    mock_myvisajobs.search.assert_not_called()
+    mock_myvisajobs.search.assert_called_once()
 
 
 @pytest.mark.asyncio
-async def test_waterfall_falls_to_myvisajobs(verifier, tier2_company, mock_froghire, mock_h1bgrader, mock_myvisajobs):
-    """If FrogHire and H1BGrader both return None, MyVisaJobs is the last resort."""
-    mock_froghire.search.return_value = None
-    mock_h1bgrader.search.return_value = None
+async def test_single_source_myvisajobs(verifier, tier2_company, mock_froghire, mock_h1bgrader, mock_myvisajobs):
+    """Only MyVisaJobs returns data → single(MyVisaJobs) consensus."""
     mvj_record = H1BRecord(
         company_name="LlamaIndex",
         status=H1BStatus.CONFIRMED,
@@ -190,23 +187,20 @@ async def test_waterfall_falls_to_myvisajobs(verifier, tier2_company, mock_frogh
     record = await verifier.verify(tier2_company)
 
     assert record.status == H1BStatus.CONFIRMED
-    assert record.source == "MyVisaJobs"
+    assert record.source == "single(MyVisaJobs)"
+    # All 3 sources called in parallel
     mock_froghire.search.assert_called_once()
     mock_h1bgrader.search.assert_called_once()
     mock_myvisajobs.search.assert_called_once_with("LlamaIndex")
 
 
 @pytest.mark.asyncio
-async def test_waterfall_all_exhausted(verifier, tier2_company, mock_froghire, mock_h1bgrader, mock_myvisajobs):
-    """If all 3 sources return None, result is UNKNOWN."""
-    mock_froghire.search.return_value = None
-    mock_h1bgrader.search.return_value = None
-    mock_myvisajobs.search.return_value = None
-
+async def test_all_sources_empty(verifier, tier2_company, mock_froghire, mock_h1bgrader, mock_myvisajobs):
+    """All 3 sources return None → UNKNOWN with all_sources_empty."""
     record = await verifier.verify(tier2_company)
 
     assert record.status == H1BStatus.UNKNOWN
-    assert record.source == "waterfall_exhausted"
+    assert record.source == "all_sources_empty"
     mock_froghire.search.assert_called_once()
     mock_h1bgrader.search.assert_called_once()
     mock_myvisajobs.search.assert_called_once()
@@ -240,7 +234,7 @@ async def test_h1b_record_fields_populated(verifier, tier2_company, mock_froghir
     assert record.company_name == "LlamaIndex"
     assert record.company_id == 2
     assert record.status == H1BStatus.CONFIRMED
-    assert record.source == "Frog Hire"
+    assert record.source == "single(Frog Hire)"  # parallel consensus with single source
     assert record.lca_count == 8
     assert record.lca_fiscal_year == "2025"
     assert record.has_perm is True
@@ -273,7 +267,7 @@ def test_tier3_record_has_correct_defaults():
 
 @pytest.mark.asyncio
 async def test_batch_verify_mixed_tiers(verifier, mock_froghire, mock_h1bgrader, mock_myvisajobs):
-    """Batch with Tier 2 and Tier 3 companies: Tier 3 skips HTTP, Tier 2 uses waterfall."""
+    """Batch with Tier 2 and Tier 3 companies: Tier 3 skips HTTP, Tier 2 uses parallel consensus."""
     tier3_co = CompanyORM(id=10, name="YCStartup", source_portal="Work at a Startup (YC)")
     tier2_co = CompanyORM(id=20, name="AICompany", source_portal="Jobright AI")
 
@@ -294,12 +288,12 @@ async def test_batch_verify_mixed_tiers(verifier, mock_froghire, mock_h1bgrader,
     assert results[0].source == "auto_pass"
     assert results[0].company_name == "YCStartup"
 
-    # Tier 2 company: went through waterfall
+    # Tier 2 company: went through parallel consensus (single source returned data)
     assert results[1].status == H1BStatus.CONFIRMED
-    assert results[1].source == "Frog Hire"
+    assert results[1].source == "single(Frog Hire)"
     assert results[1].company_name == "AICompany"
 
-    # FrogHire was only called once (for the Tier 2 company)
+    # All 3 sources called once (for the Tier 2 company only)
     mock_froghire.search.assert_called_once_with("AICompany")
 
 
@@ -346,13 +340,13 @@ async def test_batch_verify_persists_to_db(verifier, tier2_company, mock_froghir
     h1b_rows = session.query(H1BORM).all()
     assert len(h1b_rows) == 1
     assert h1b_rows[0].status == "Confirmed"
-    assert h1b_rows[0].source == "Frog Hire"
+    assert h1b_rows[0].source == "single(Frog Hire)"
     assert h1b_rows[0].lca_count == 5
 
     # Check CompanyORM was updated
     company = session.query(CompanyORM).filter_by(name="LlamaIndex").first()
     assert company.h1b_status == "Confirmed"
-    assert company.h1b_source == "Frog Hire"
+    assert company.h1b_source == "single(Frog Hire)"
     assert "LCA: 5" in company.h1b_details
     assert "PERM: Yes" in company.h1b_details
     assert "E-Verify: Yes" in company.h1b_details
@@ -390,8 +384,8 @@ def test_resolve_portal_tier_unknown_defaults_tier2():
 
 
 @pytest.mark.asyncio
-async def test_tier1_linkedin_uses_waterfall(verifier, tier1_company, mock_froghire):
-    """Tier 1 (LinkedIn) company goes through waterfall, not auto-pass."""
+async def test_tier1_linkedin_uses_parallel_consensus(verifier, tier1_company, mock_froghire):
+    """Tier 1 (LinkedIn) company goes through parallel consensus, not auto-pass."""
     froghire_record = H1BRecord(
         company_name="Cursor",
         status=H1BStatus.CONFIRMED,
@@ -402,4 +396,24 @@ async def test_tier1_linkedin_uses_waterfall(verifier, tier1_company, mock_frogh
     record = await verifier.verify(tier1_company)
 
     assert record.status == H1BStatus.CONFIRMED
+    assert record.source == "single(Frog Hire)"
     mock_froghire.search.assert_called_once_with("Cursor")
+
+
+@pytest.mark.asyncio
+async def test_two_sources_agree_consensus(verifier, tier2_company, mock_froghire, mock_h1bgrader, mock_myvisajobs):
+    """Two of three sources agree → consensus wins."""
+    mock_froghire.search.return_value = H1BRecord(
+        company_name="LlamaIndex", status=H1BStatus.CONFIRMED, source="Frog Hire",
+    )
+    mock_h1bgrader.search.return_value = H1BRecord(
+        company_name="LlamaIndex", status=H1BStatus.CONFIRMED, source="H1BGrader",
+    )
+    # MyVisaJobs returns None (no data)
+
+    record = await verifier.verify(tier2_company)
+
+    assert record.status == H1BStatus.CONFIRMED
+    assert "consensus" in record.source
+    assert "Frog Hire" in record.source
+    assert "H1BGrader" in record.source

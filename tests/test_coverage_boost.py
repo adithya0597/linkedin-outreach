@@ -17,8 +17,7 @@ from sqlalchemy.orm import sessionmaker
 from typer.testing import CliRunner
 
 from src.cli.main import app
-from src.db.orm import Base, CompanyORM, JobPostingORM
-from src.models.company import ScoreBreakdown
+from src.db.orm import Base, CompanyORM
 from src.validators.quality_gates import QualityAuditor
 from src.validators.scoring_engine import FitScoringEngine
 
@@ -252,7 +251,7 @@ class TestEnforceGate:
 
     def test_passes_with_high_threshold(self, qa_session):
         auditor = QualityAuditor(qa_session)
-        passed, report = auditor.enforce_gate(threshold=100)
+        passed, _report = auditor.enforce_gate(threshold=100)
         assert passed is True
 
     def test_returns_report(self, qa_session):

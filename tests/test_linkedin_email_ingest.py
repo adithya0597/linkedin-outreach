@@ -15,7 +15,6 @@ from src.integrations.gmail_alert_parser import (
 from src.models.job_posting import JobPosting
 from src.scrapers.linkedin_email_ingest import LinkedInAlertScraper
 
-
 # ---------------------------------------------------------------------------
 # Gmail alert parser: parse_linkedin_alert_html
 # ---------------------------------------------------------------------------

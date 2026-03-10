@@ -16,7 +16,6 @@ from src.outreach.llm_classifier import (
     get_classifier,
 )
 
-
 # ---- Test 1: ClassificationResult dataclass creation ----
 
 def test_classification_result_dataclass():
@@ -208,7 +207,7 @@ def test_classify_includes_company_context():
 
 def test_valid_classifications_complete():
     expected = {"POSITIVE", "NEGATIVE", "NEUTRAL", "REFERRAL", "AUTO_REPLY"}
-    assert VALID_CLASSIFICATIONS == expected
+    assert expected == VALID_CLASSIFICATIONS
 
 
 # ---- Test 14: _parse_response handles non-numeric confidence gracefully ----

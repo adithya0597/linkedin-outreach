@@ -2,8 +2,6 @@
 
 from unittest.mock import patch
 
-import pytest
-
 from src.db.orm import CompanyORM
 from src.pipeline.orchestrator import Pipeline
 from src.validators.domain_scorer import DomainMatchScorer

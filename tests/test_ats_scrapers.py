@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
@@ -20,7 +19,6 @@ from src.scrapers.ats_scraper import (
     _strip_html,
 )
 from src.scrapers.persistence import _normalize
-
 
 # ---------------------------------------------------------------------------
 # Helper tests
@@ -42,12 +40,12 @@ class TestParseH1BFromDescription:
 
     def test_visa_sponsorship(self):
         text = "This role offers visa sponsorship."
-        mentioned, h1b_text = _parse_h1b_from_description(text)
+        mentioned, _h1b_text = _parse_h1b_from_description(text)
         assert mentioned is True
 
     def test_work_authorization(self):
         text = "Must have work authorization for the United States."
-        mentioned, h1b_text = _parse_h1b_from_description(text)
+        mentioned, _h1b_text = _parse_h1b_from_description(text)
         assert mentioned is True
 
     def test_no_h1b_keywords(self):
@@ -62,7 +60,7 @@ class TestParseH1BFromDescription:
         assert h1b_text == ""
 
     def test_none_text(self):
-        mentioned, h1b_text = _parse_h1b_from_description(None)
+        mentioned, _h1b_text = _parse_h1b_from_description(None)
         assert mentioned is False
 
 
@@ -77,7 +75,7 @@ class TestParseSalaryFromDescription:
 
     def test_salary_range_k_format(self):
         text = "Compensation: $150k-$200k"
-        sal_str, sal_min, sal_max = _parse_salary_from_description(text)
+        _sal_str, sal_min, sal_max = _parse_salary_from_description(text)
         assert sal_min == 150000
         assert sal_max == 200000
 
@@ -96,7 +94,7 @@ class TestParseSalaryFromDescription:
         assert sal_max is None
 
     def test_empty_text(self):
-        sal_str, sal_min, sal_max = _parse_salary_from_description("")
+        sal_str, sal_min, _sal_max = _parse_salary_from_description("")
         assert sal_str == ""
         assert sal_min is None
 
@@ -365,7 +363,6 @@ async def test_greenhouse_portal_is_tier_2():
 
 def test_composite_dedup_same_job_different_urls():
     """Same (company, title) from different URLs should produce only 1 record."""
-    from unittest.mock import MagicMock
 
     from sqlalchemy.orm import Session
 
@@ -392,7 +389,7 @@ def test_composite_dedup_same_job_different_urls():
         source_portal=SourcePortal.GREENHOUSE,
     )
 
-    total, new, companies = persist_scan_results(
+    total, new, _companies = persist_scan_results(
         session, "Ashby", [posting1, posting2]
     )
 
@@ -403,7 +400,6 @@ def test_composite_dedup_same_job_different_urls():
 
 def test_composite_dedup_different_jobs_same_company():
     """Different titles at the same company should both be inserted."""
-    from unittest.mock import MagicMock
 
     from sqlalchemy.orm import Session
 
@@ -426,7 +422,7 @@ def test_composite_dedup_different_jobs_same_company():
         source_portal=SourcePortal.ASHBY,
     )
 
-    total, new, companies = persist_scan_results(
+    _total, new, _companies = persist_scan_results(
         session, "Ashby", [posting1, posting2]
     )
 

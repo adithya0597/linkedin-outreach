@@ -1,19 +1,15 @@
 """Tests for startup validation checks and Settings.timezone."""
 import os
-from pathlib import Path
-from unittest.mock import patch, mock_open
+from unittest.mock import patch
 
-import pytest
-
+from src.config.settings import Settings
 from src.config.startup_checks import (
     CheckResult,
+    run_all_checks,
     validate_api_keys,
     validate_config_files,
     validate_database,
-    validate_chrome,
-    run_all_checks,
 )
-from src.config.settings import Settings
 
 
 class TestValidateApiKeys:

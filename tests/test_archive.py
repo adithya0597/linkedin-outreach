@@ -28,6 +28,7 @@ def archive_session():
         company_id=company.id,
         company_name="TestCo",
         title="AI Engineer",
+        url="https://example.com/fresh",
         discovered_date=now - timedelta(days=5),
         is_active=True,
     )
@@ -35,6 +36,7 @@ def archive_session():
         company_id=company.id,
         company_name="TestCo",
         title="ML Engineer",
+        url="https://example.com/stale",
         discovered_date=now - timedelta(days=45),
         is_active=True,
     )
@@ -42,6 +44,7 @@ def archive_session():
         company_id=company.id,
         company_name="TestCo",
         title="Data Scientist",
+        url="https://example.com/archived",
         discovered_date=now - timedelta(days=60),
         is_active=False,
     )
@@ -181,24 +184,23 @@ class TestSchedulerArchiveJob:
 
         mock_cron_trigger = MagicMock()
 
-        with patch.dict("sys.modules", {}):
-            with patch(
-                "apscheduler.schedulers.blocking.BlockingScheduler",
-                mock_scheduler_cls,
-            ), patch(
-                "apscheduler.triggers.cron.CronTrigger",
-                mock_cron_trigger,
-            ):
-                from src.pipeline.scheduler import ScanScheduler
+        with patch.dict("sys.modules", {}), patch(
+            "apscheduler.schedulers.blocking.BlockingScheduler",
+            mock_scheduler_cls,
+        ), patch(
+            "apscheduler.triggers.cron.CronTrigger",
+            mock_cron_trigger,
+        ):
+            from src.pipeline.scheduler import ScanScheduler
 
-                sched = ScanScheduler.__new__(ScanScheduler)
-                sched.config = {
-                    "schedules": {
-                        "full_scan": {"cron": "0 8 * * *"},
-                        "afternoon_rescan": {"cron": "0 14 * * *"},
-                    }
+            sched = ScanScheduler.__new__(ScanScheduler)
+            sched.config = {
+                "schedules": {
+                    "full_scan": {"cron": "0 8 * * *"},
+                    "afternoon_rescan": {"cron": "0 14 * * *"},
                 }
-                sched.start()
+            }
+            sched.start()
 
         # Verify 6 add_job calls: full_scan, afternoon_rescan, weekly_archive, followup_alerts, response_check, draft_preparation
         assert mock_scheduler_instance.add_job.call_count == 6

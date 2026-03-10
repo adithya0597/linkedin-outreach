@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import re
 from datetime import datetime
 from urllib.parse import quote_plus
@@ -411,10 +412,8 @@ class HiringCafeHttpxScraper(HttpxScraper):
                 posted_date = None
                 pub_date_str = processed.get("estimated_publish_date", "")
                 if pub_date_str:
-                    try:
+                    with contextlib.suppress(ValueError, TypeError):
                         posted_date = datetime.fromisoformat(pub_date_str.replace("Z", "+00:00"))
-                    except (ValueError, TypeError):
-                        pass
 
                 posting = JobPosting(
                     title=title,
@@ -493,7 +492,7 @@ class YCHttpxScraper(HttpxScraper):
         soup = BeautifulSoup(response.text, "html.parser")
 
         # Find all company links (links to /companies/slug but NOT to /jobs/)
-        company_links = soup.select('a[href*="/companies/"]')
+        soup.select('a[href*="/companies/"]')
 
         # Group elements by their parent container
         # Each job card has: company link, job title link (ycombinator.com), details <p>, apply link
