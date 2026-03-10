@@ -50,7 +50,7 @@ def build_default_registry() -> PortalRegistry:
     """Create a registry with all portal scrapers pre-registered.
 
     Four-tier architecture:
-      Tier S — Zero Risk (APIs): Ashby, Greenhouse, Lever, Hiring Cafe
+      Tier S — Zero Risk (APIs): Ashby, Greenhouse, Hiring Cafe
       Tier A — Low Risk (httpx): Wellfound (__NEXT_DATA__), YC (Algolia),
                WTTJ (Algolia), startup.jobs, Top Startups, AI Jobs
       Tier B — MCP Playwright: LinkedIn (primary), Built In, JobBoard AI
@@ -67,7 +67,6 @@ def build_default_registry() -> PortalRegistry:
         TopStartupsScraper,
     )
     from src.scrapers.jobspy_scraper import JobSpyScraper
-    from src.scrapers.lever_scraper import LeverScraper
     from src.scrapers.linkedin_email_ingest import LinkedInAlertScraper
     from src.scrapers.mcp_scraper import MCPPlaywrightScraper
     from src.scrapers.patchright_scraper import (
@@ -88,15 +87,12 @@ def build_default_registry() -> PortalRegistry:
     rl.configure("Built In", 1.0)                  # MCP Playwright
     rl.configure("Ashby", 2.0)                     # ATS API
     rl.configure("Greenhouse", 2.0)                # ATS API
-    rl.configure("Lever", 2.0)                     # ATS API
-
     registry = PortalRegistry()
 
     scrapers: list[tuple[str, BaseScraper]] = [
         # ── Tier S: Zero Risk (APIs) ──────────────────────────────
         ("ashby", AshbyScraper(rate_limiter=rl)),
         ("greenhouse", GreenhouseScraper(rate_limiter=rl)),
-        ("lever", LeverScraper(rate_limiter=rl)),
         ("hiring_cafe", HiringCafeHttpxScraper(rate_limiter=rl)),
         # ── Tier A: Low Risk (httpx, no browser) ─────────────────
         ("wellfound", WellfoundNextDataScraper(rate_limiter=rl)),

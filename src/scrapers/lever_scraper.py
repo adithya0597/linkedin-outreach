@@ -6,6 +6,10 @@ Endpoint: GET https://api.lever.co/v0/postings/{company}?mode=json
 Tier S — Zero Risk: Public API, no authentication, structured JSON.
 """
 
+# DEPRECATED: LeverScraper removed from default registry (2026-03-10).
+# Lever ATS jobs are now discovered via direct ATS API scraper.
+# This file is kept for reference. Do not import in new code.
+
 from __future__ import annotations
 
 from datetime import datetime
