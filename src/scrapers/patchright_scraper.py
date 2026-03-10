@@ -11,6 +11,7 @@ protection (Jobright 4/10, TrueUp 4/10).
 from __future__ import annotations
 
 import asyncio
+import os
 import random
 from datetime import datetime
 from urllib.parse import quote_plus
@@ -45,6 +46,12 @@ class PatchrightScraper(BaseScraper):
         so cookies/logins from your regular Chrome are available.
         Falls back to regular Playwright if Patchright is not installed.
         """
+        if os.environ.get("PYTEST_CURRENT_TEST") or os.environ.get("TESTING") == "1":
+            raise RuntimeError(
+                "Real browser launch blocked during testing! "
+                "Mock the browser launch or use @pytest.mark.live"
+            )
+
         try:
             from patchright.async_api import async_playwright
             logger.debug("Using Patchright (stealth mode)")

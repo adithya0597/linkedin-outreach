@@ -72,8 +72,11 @@ def daily_run(
     dry_run: bool = typer.Option(False, "--dry-run", help="Dry run (no Notion API calls)"),
     skip_scan: bool = typer.Option(False, "--skip-scan", help="Skip scan stage"),
     skip_enrich: bool = typer.Option(False, "--skip-enrich", help="Skip enrichment stage"),
+    skip_h1b: bool = typer.Option(False, "--skip-h1b", help="Skip H1B verification stage"),
+    skip_drafts: bool = typer.Option(False, "--skip-drafts", help="Skip outreach draft generation"),
+    draft_threshold: float = typer.Option(60.0, "--draft-threshold", help="Min fit_score for draft generation"),
 ):
-    """Run full daily pipeline: scan -> enrich -> score -> queue -> followup -> sync."""
+    """Run full daily pipeline: scan -> enrich -> h1b -> score -> draft -> queue -> followup -> sync."""
     from src.db.database import get_engine, get_session, init_db
     from src.pipeline.daily_orchestrator import DailyOrchestrator
 
@@ -83,7 +86,12 @@ def daily_run(
 
     orchestrator = DailyOrchestrator(session)
     results = orchestrator.run_full_day(
-        dry_run=dry_run, skip_scan=skip_scan, skip_enrich=skip_enrich
+        dry_run=dry_run,
+        skip_scan=skip_scan,
+        skip_enrich=skip_enrich,
+        skip_h1b=skip_h1b,
+        skip_drafts=skip_drafts,
+        draft_score_threshold=draft_threshold,
     )
 
     summary = orchestrator.generate_daily_summary()

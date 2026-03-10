@@ -1,5 +1,6 @@
 """Scan-related CLI commands: scan, mcp-persist, scan-gmail, rescan, test-antibot."""
 
+import os
 from pathlib import Path
 
 import typer
@@ -214,9 +215,16 @@ def test_antibot():
 
         console.print(f"[bold]Testing {engine} against bot detection...[/bold]")
 
+        if os.environ.get("PYTEST_CURRENT_TEST") or os.environ.get("TESTING") == "1":
+            raise RuntimeError(
+                "Real browser launch blocked during testing! "
+                "Mock the browser launch or use @pytest.mark.live"
+            )
+
         pw = await async_playwright().start()
         browser = await pw.chromium.launch(
             headless=False,
+            channel="chrome",
             args=["--disable-blink-features=AutomationControlled"],
         )
         page = await browser.new_page()

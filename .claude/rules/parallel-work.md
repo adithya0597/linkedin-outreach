@@ -19,3 +19,10 @@
 - Use subagents for independent queries (company research, LinkedIn lookups)
 - Coordinator sees summaries only — never full subagent traces
 - Match subagent type to needed tools (read-only for research, full for writes)
+
+### Pre-Test Safety in Worktrees
+- Before running `pytest`, verify `tests/conftest.py` has the `_block_browser_launch` autouse fixture
+- If missing, copy it from main branch: `git show main:tests/conftest.py > tests/conftest.py`
+- Set env var: `PLAYWRIGHT_BROWSERS_PATH=/dev/null pytest`
+- NEVER run a full `pytest` suite without these guards — it can spawn dozens of Chromium processes
+- Always commit browser-related fixes BEFORE creating worktrees

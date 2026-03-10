@@ -52,15 +52,27 @@ def posting_to_orm(posting: JobPosting) -> JobPostingORM:
 
 
 def _get_or_create_company(
-    session: Session, company_name: str, portal_name: str
+    session: Session,
+    company_name: str,
+    portal_name: str,
+    role_url: str = "",
+    role: str = "",
 ) -> CompanyORM | None:
-    """Find existing company or create skeleton. Case-insensitive match."""
+    """Find existing company or create skeleton. Case-insensitive match.
+
+    Backfills ``role_url`` and ``role`` on existing companies when they are
+    currently empty and the incoming posting supplies a value.
+    """
     if not company_name or not company_name.strip():
         return None
     existing = session.query(CompanyORM).filter(
         CompanyORM.name.ilike(company_name.strip())
     ).first()
     if existing:
+        if not existing.role_url and role_url:
+            existing.role_url = role_url
+        if not existing.role and role:
+            existing.role = role
         return existing
     company = CompanyORM(
         name=company_name.strip(),
@@ -69,6 +81,8 @@ def _get_or_create_company(
         is_ai_native=True,
         source_portal=portal_name,
         stage="To apply",
+        role_url=role_url,
+        role=role,
         created_at=datetime.now(),
         updated_at=datetime.now(),
     )
@@ -130,7 +144,10 @@ def persist_scan_results(
         if company_key:
             if company_key not in company_cache:
                 was_known = company_key in existing_company_names
-                company = _get_or_create_company(session, posting.company_name, portal_name)
+                company = _get_or_create_company(
+                    session, posting.company_name, portal_name,
+                    role_url=posting.url, role=posting.title,
+                )
                 company_cache[company_key] = company
                 if company and not was_known:
                     new_companies += 1

@@ -49,16 +49,21 @@ def test_orchestrator_has_run_scan_method(session):
 @patch("src.pipeline.daily_orchestrator.DailyOrchestrator._run_sync")
 @patch("src.pipeline.daily_orchestrator.DailyOrchestrator._run_followup_check")
 @patch("src.pipeline.daily_orchestrator.DailyOrchestrator._run_send_queue")
+@patch("src.pipeline.daily_orchestrator.DailyOrchestrator._run_drafts")
 @patch("src.pipeline.daily_orchestrator.DailyOrchestrator._run_scoring")
+@patch("src.pipeline.daily_orchestrator.DailyOrchestrator._run_h1b_verify")
 @patch("src.pipeline.daily_orchestrator.DailyOrchestrator._run_enrichment")
 @patch("src.pipeline.daily_orchestrator.DailyOrchestrator._run_scan")
 def test_run_full_day_has_scan_key(
-    mock_scan, mock_enrich, mock_score, mock_queue, mock_followup, mock_sync, session
+    mock_scan, mock_enrich, mock_h1b, mock_score, mock_drafts,
+    mock_queue, mock_followup, mock_sync, session
 ):
     """run_full_day() result dict has a 'scan' key."""
     mock_scan.return_value = {"scan_results": {"total_found": 10, "total_new": 3}}
     mock_enrich.return_value = {"enriched": 0, "skipped": 0, "errors": []}
+    mock_h1b.return_value = {"updated": 0}
     mock_score.return_value = {"scored": 0, "top_10": []}
+    mock_drafts.return_value = {"drafted": 0, "skipped": 0, "over_limit": 0, "errors": []}
     mock_queue.return_value = []
     mock_followup.return_value = {
         "overdue": [], "due_today": [], "due_this_week": [],
@@ -82,18 +87,23 @@ def test_run_full_day_has_scan_key(
 @patch("src.pipeline.daily_orchestrator.DailyOrchestrator._run_sync")
 @patch("src.pipeline.daily_orchestrator.DailyOrchestrator._run_followup_check")
 @patch("src.pipeline.daily_orchestrator.DailyOrchestrator._run_send_queue")
+@patch("src.pipeline.daily_orchestrator.DailyOrchestrator._run_drafts")
 @patch("src.pipeline.daily_orchestrator.DailyOrchestrator._run_scoring")
+@patch("src.pipeline.daily_orchestrator.DailyOrchestrator._run_h1b_verify")
 @patch("src.pipeline.daily_orchestrator.DailyOrchestrator._run_enrichment")
 @patch("src.pipeline.daily_orchestrator.DailyOrchestrator._run_scan")
 def test_scan_runs_before_enrichment(
-    mock_scan, mock_enrich, mock_score, mock_queue, mock_followup, mock_sync, session
+    mock_scan, mock_enrich, mock_h1b, mock_score, mock_drafts,
+    mock_queue, mock_followup, mock_sync, session
 ):
     """Scan stage executes before enrichment (tracked via call order)."""
     call_order = []
 
     mock_scan.side_effect = lambda: call_order.append("scan") or {}
     mock_enrich.side_effect = lambda: call_order.append("enrich") or {}
+    mock_h1b.side_effect = lambda: call_order.append("h1b") or {"updated": 0}
     mock_score.side_effect = lambda: call_order.append("score") or {}
+    mock_drafts.side_effect = lambda *a, **kw: call_order.append("drafts") or {}
     mock_queue.side_effect = lambda: call_order.append("queue") or []
     mock_followup.side_effect = lambda: call_order.append("followup") or {
         "overdue": [], "due_today": [], "due_this_week": [], "total_active_sequences": 0
@@ -114,15 +124,20 @@ def test_scan_runs_before_enrichment(
 @patch("src.pipeline.daily_orchestrator.DailyOrchestrator._run_sync")
 @patch("src.pipeline.daily_orchestrator.DailyOrchestrator._run_followup_check")
 @patch("src.pipeline.daily_orchestrator.DailyOrchestrator._run_send_queue")
+@patch("src.pipeline.daily_orchestrator.DailyOrchestrator._run_drafts")
 @patch("src.pipeline.daily_orchestrator.DailyOrchestrator._run_scoring")
+@patch("src.pipeline.daily_orchestrator.DailyOrchestrator._run_h1b_verify")
 @patch("src.pipeline.daily_orchestrator.DailyOrchestrator._run_enrichment")
 @patch("src.pipeline.daily_orchestrator.DailyOrchestrator._run_scan")
 def test_skip_scan_returns_skipped(
-    mock_scan, mock_enrich, mock_score, mock_queue, mock_followup, mock_sync, session
+    mock_scan, mock_enrich, mock_h1b, mock_score, mock_drafts,
+    mock_queue, mock_followup, mock_sync, session
 ):
     """skip_scan=True skips scan stage and result shows {'skipped': True}."""
     mock_enrich.return_value = {}
+    mock_h1b.return_value = {"updated": 0}
     mock_score.return_value = {}
+    mock_drafts.return_value = {"drafted": 0, "skipped": 0, "over_limit": 0, "errors": []}
     mock_queue.return_value = []
     mock_followup.return_value = {
         "overdue": [], "due_today": [], "due_this_week": [],

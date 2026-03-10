@@ -47,3 +47,7 @@ packages = ["src"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+markers = [
+    "live: marks tests that require real browser or network (deselected by default)",
+]
+addopts = "-m 'not live'"

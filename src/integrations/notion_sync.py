@@ -146,17 +146,6 @@ class NotionCRM(NotionAPIClient):
         page_id = await self.find_page_by_name(company.name)
 
         if page_id:
-            # Check conflict: compare timestamps
-            page = await self._request("GET", f"{NOTION_BASE}/pages/{page_id}")
-            notion_updated = page.get("last_edited_time", "")
-            local_updated = (
-                company.updated_at.isoformat() if company.updated_at else ""
-            )
-
-            # If Notion was updated more recently, skip the push
-            if notion_updated > local_updated:
-                return page_id
-
             await self._request(
                 "PATCH",
                 f"{NOTION_BASE}/pages/{page_id}",

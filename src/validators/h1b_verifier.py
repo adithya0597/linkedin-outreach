@@ -1,11 +1,13 @@
-"""H1B verification system — 3-source waterfall with tier-aware auto-pass."""
+"""H1B verification system — 3-source parallel consensus with tier-aware filtering."""
 
 from __future__ import annotations
 
 import asyncio
 import json
 import logging
+import os
 import re
+from collections import Counter
 from datetime import datetime, timedelta
 from urllib.parse import quote_plus
 
@@ -16,6 +18,69 @@ from src.db.orm import CompanyORM, H1BORM
 from src.models.h1b import H1BRecord
 
 logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Shared regex patterns for H1B status extraction
+# ---------------------------------------------------------------------------
+
+# Negative phrases that negate an H1B match — used as lookahead
+_NEGATIVE_PHRASES = (
+    r"denied|not\s+sponsor|no\s+sponsor|doesn['']t\s+sponsor|"
+    r"does\s+not\s+sponsor|unable\s+to\s+sponsor|cannot\s+sponsor|"
+    r"can['']t\s+sponsor|will\s+not\s+sponsor|won['']t\s+sponsor|"
+    r"no\s+longer\s+sponsor"
+)
+
+# Positive H1B pattern — requires NO negative context following/preceding the match
+_H1B_POSITIVE_PATTERN = re.compile(
+    r"(?!.*(?:" + _NEGATIVE_PHRASES + r"))"  # negative lookahead over full match region
+    r"H-?1B\s*(?:Sponsor|Visa|Yes|✓|✅)",
+    re.IGNORECASE,
+)
+
+# Also match "Sponsors H1B" pattern (verb form)
+_SPONSORS_H1B_PATTERN = re.compile(
+    r"(?<!not\s)(?<!no\s)(?<!doesn['']t\s)(?<!cannot\s)(?<!unable\sto\s)"
+    r"Sponsors?\s+H-?1B",
+    re.IGNORECASE,
+)
+
+# Explicit negative pattern
+_H1B_NEGATIVE_PATTERN = re.compile(
+    r"H-?1B.*?(?:No|✗|❌|Not Found|Denied)", re.IGNORECASE
+)
+
+# Denial/negative context pattern — if H1B is mentioned alongside these words
+_H1B_DENIAL_CONTEXT = re.compile(
+    r"(?:" + _NEGATIVE_PHRASES + r").*H-?1B|H-?1B.*?(?:" + _NEGATIVE_PHRASES + r")",
+    re.IGNORECASE,
+)
+
+
+def classify_h1b_text(html: str) -> H1BStatus:
+    """Classify H1B status from raw HTML/text using hardened regex.
+
+    Checks for denial context FIRST to avoid false positives, then checks
+    for positive signals.
+
+    Returns:
+        H1BStatus.CONFIRMED — positive H1B sponsorship signal found
+        H1BStatus.EXPLICIT_NO — explicit denial found
+        H1BStatus.UNKNOWN — no signal either way
+    """
+    # Step 1: Check for explicit denial context FIRST
+    if _H1B_DENIAL_CONTEXT.search(html):
+        return H1BStatus.EXPLICIT_NO
+    if _H1B_NEGATIVE_PATTERN.search(html):
+        return H1BStatus.EXPLICIT_NO
+
+    # Step 2: Check for positive signals (with negative lookahead baked in)
+    if _H1B_POSITIVE_PATTERN.search(html):
+        return H1BStatus.CONFIRMED
+    if _SPONSORS_H1B_PATTERN.search(html):
+        return H1BStatus.CONFIRMED
+
+    return H1BStatus.UNKNOWN
 
 
 class FrogHireClient:
@@ -33,6 +98,12 @@ class FrogHireClient:
 
         Uses Playwright to render JS-heavy pages. Returns None if no data found.
         """
+        if os.environ.get("PYTEST_CURRENT_TEST") or os.environ.get("TESTING") == "1":
+            raise RuntimeError(
+                "Real browser launch blocked during testing! "
+                "Mock the browser launch or use @pytest.mark.live"
+            )
+
         try:
             from playwright.async_api import async_playwright
         except ImportError:
@@ -45,12 +116,12 @@ class FrogHireClient:
         async with self._semaphore:
             try:
                 async with async_playwright() as p:
-                    browser = await p.chromium.launch(headless=True)
+                    browser = await p.chromium.launch(headless=True, channel="chrome")
                     page = await browser.new_page()
-                    await page.goto(url, wait_until="networkidle", timeout=15000)
+                    await page.goto(url, wait_until="domcontentloaded", timeout=20000)
 
-                    # Wait for results to load
-                    await page.wait_for_timeout(2000)
+                    # Wait for JS to render results
+                    await page.wait_for_timeout(4000)
                     content = await page.content()
                     await browser.close()
 
@@ -74,13 +145,8 @@ class FrogHireClient:
             expires_at=datetime.now() + timedelta(days=30),
         )
 
-        # Extract H1B status
-        if re.search(r"H-?1B\s*(?:Sponsor|Visa|Yes|✓|✅)", html, re.IGNORECASE):
-            record.status = H1BStatus.CONFIRMED
-        elif re.search(r"H-?1B.*(?:No|✗|❌|Not Found)", html, re.IGNORECASE):
-            record.status = H1BStatus.EXPLICIT_NO
-        else:
-            record.status = H1BStatus.UNKNOWN
+        # Extract H1B status using shared classifier
+        record.status = classify_h1b_text(html)
 
         # Extract PERM
         if re.search(r"PERM\s*(?:Yes|✓|✅|Filed|Approved)", html, re.IGNORECASE):
@@ -138,7 +204,7 @@ class H1BGraderClient:
                 async with httpx.AsyncClient(
                     timeout=15.0,
                     follow_redirects=True,
-                    headers={"User-Agent": "Mozilla/5.0 (compatible; OutreachBot/1.0)"},
+                    headers={"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"},
                 ) as client:
                     response = await client.get(url)
                     response.raise_for_status()
@@ -203,7 +269,7 @@ class MyVisaJobsClient:
                 async with httpx.AsyncClient(
                     timeout=15.0,
                     follow_redirects=True,
-                    headers={"User-Agent": "Mozilla/5.0 (compatible; OutreachBot/1.0)"},
+                    headers={"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"},
                 ) as client:
                     response = await client.get(url)
                     response.raise_for_status()
@@ -229,14 +295,19 @@ class MyVisaJobsClient:
         # Extract LCA count
         lca_match = re.search(r"(?:LCA|Applications?)[:\s]*([0-9,]+)", html, re.IGNORECASE)
         if lca_match:
-            record.lca_count = int(lca_match.group(1).replace(",", ""))
+            raw_val = lca_match.group(1).replace(",", "").strip()
+            if raw_val.isdigit():
+                record.lca_count = int(raw_val)
 
         # Extract approval rate
         rate_match = re.search(
             r"(?:Approval|Certified)\s*(?:Rate)?[:\s]*([\d.]+)\s*%", html, re.IGNORECASE
         )
         if rate_match:
-            record.approval_rate = float(rate_match.group(1))
+            try:
+                record.approval_rate = float(rate_match.group(1))
+            except ValueError:
+                pass
 
         # Determine status
         if record.lca_count or record.approval_rate is not None:
@@ -256,11 +327,74 @@ def _resolve_portal_tier(company: CompanyORM) -> PortalTier:
     return PortalTier.TIER_2  # Default to Tier 2 (requires verification)
 
 
+def _build_consensus(
+    results: list[H1BRecord | None],
+    source_labels: list[str],
+) -> tuple[H1BStatus, str, list[dict]]:
+    """Build consensus from parallel source results.
+
+    Args:
+        results: List of H1BRecord or None from each source.
+        source_labels: Corresponding source names.
+
+    Returns:
+        (consensus_status, consensus_source_string, disagreement_details)
+
+    Voting rules:
+        - 2/3 or 3/3 agree on a non-UNKNOWN status -> that status wins
+        - All sources return None -> UNKNOWN
+        - No majority -> UNKNOWN + disagreement details logged
+    """
+    votes: list[tuple[str, H1BStatus]] = []
+    details: list[dict] = []
+
+    for label, record in zip(source_labels, results):
+        if record is None:
+            votes.append((label, H1BStatus.UNKNOWN))
+            details.append({"source": label, "status": "no_data", "record": None})
+        else:
+            votes.append((label, record.status))
+            details.append({"source": label, "status": record.status.value, "record": record})
+
+    # Count non-UNKNOWN statuses
+    status_counts: Counter[H1BStatus] = Counter()
+    for _, status in votes:
+        if status != H1BStatus.UNKNOWN:
+            status_counts[status] += 1
+
+    # Check for consensus (2/3 or more agree)
+    if status_counts:
+        winner, count = status_counts.most_common(1)[0]
+        if count >= 2:
+            sources_agreeing = [label for label, s in votes if s == winner]
+            return winner, f"consensus({','.join(sources_agreeing)})", details
+        elif count == 1 and len(status_counts) == 1:
+            # Only one source returned data, the others had no data
+            source_label = [label for label, s in votes if s == winner][0]
+            return winner, f"single({source_label})", details
+
+    # Check for disagreement (multiple non-UNKNOWN statuses that don't agree)
+    disagreements = []
+    if len(status_counts) > 1:
+        for label, status in votes:
+            if status != H1BStatus.UNKNOWN:
+                disagreements.append({"source": label, "status": status.value})
+
+    if disagreements:
+        logger.warning(
+            "H1B source disagreement: %s",
+            json.dumps(disagreements, default=str),
+        )
+
+    # No consensus — return UNKNOWN
+    return H1BStatus.UNKNOWN, "no_consensus", details
+
+
 class H1BVerifier:
-    """Orchestrates the 3-source waterfall H1B verification.
+    """Orchestrates 3-source parallel H1B verification with consensus voting.
 
     - Tier 3 companies get auto-pass (no HTTP requests).
-    - Tier 1/2 companies go through FrogHire -> H1BGrader -> MyVisaJobs waterfall.
+    - Tier 1/2 companies query all 3 sources in parallel, then vote.
     """
 
     def __init__(
@@ -277,11 +411,11 @@ class H1BVerifier:
         """Verify H1B sponsorship for a single company.
 
         Tier 3: auto-pass with NOT_APPLICABLE.
-        Tier 1/2: waterfall through 3 sources.
+        Tier 1/2: parallel query of 3 sources + consensus voting.
         """
         tier = _resolve_portal_tier(company)
 
-        # Tier 3 auto-pass — no HTTP requests
+        # Tier 3 auto-pass -- no HTTP requests
         if tier == PortalTier.TIER_3:
             logger.info("Tier 3 auto-pass for %s (portal: %s)", company.name, company.source_portal)
             return H1BRecord(
@@ -292,31 +426,60 @@ class H1BVerifier:
                 verified_at=datetime.now(),
             )
 
-        # Waterfall: FrogHire -> H1BGrader -> MyVisaJobs
-        sources = [
-            ("Frog Hire", self.froghire),
-            ("H1BGrader", self.h1bgrader),
-            ("MyVisaJobs", self.myvisajobs),
-        ]
+        # Parallel: query all 3 sources concurrently
+        source_labels = ["Frog Hire", "H1BGrader", "MyVisaJobs"]
+        raw_results = await asyncio.gather(
+            self.froghire.search(company.name),
+            self.h1bgrader.search(company.name),
+            self.myvisajobs.search(company.name),
+            return_exceptions=True,
+        )
 
-        for source_name, client in sources:
-            logger.info("Trying %s for %s", source_name, company.name)
-            record = await client.search(company.name)
-            if record is not None:
-                record.company_id = company.id
-                logger.info(
-                    "%s: found data for %s — status=%s",
-                    source_name, company.name, record.status.value,
+        # Convert exceptions to None
+        results: list[H1BRecord | None] = []
+        for i, r in enumerate(raw_results):
+            if isinstance(r, BaseException):
+                logger.error(
+                    "%s raised exception for %s: %s",
+                    source_labels[i], company.name, r,
                 )
-                return record
+                results.append(None)
+            else:
+                results.append(r)
 
-        # All sources exhausted — return UNKNOWN
+        # Build consensus from results
+        consensus_status, consensus_source, details = _build_consensus(results, source_labels)
+
+        # Pick the best record for metadata (prefer the one matching consensus)
+        best_record: H1BRecord | None = None
+        for d in details:
+            if d["record"] is not None and d.get("status") == consensus_status.value:
+                best_record = d["record"]
+                break
+        # Fallback: any non-None record
+        if best_record is None:
+            for d in details:
+                if d["record"] is not None:
+                    best_record = d["record"]
+                    break
+
+        if best_record is not None:
+            best_record.company_id = company.id
+            best_record.status = consensus_status
+            best_record.source = consensus_source
+            logger.info(
+                "H1B consensus for %s: status=%s source=%s",
+                company.name, consensus_status.value, consensus_source,
+            )
+            return best_record
+
+        # All sources returned None
         logger.warning("No H1B data found for %s across all 3 sources", company.name)
         return H1BRecord(
             company_name=company.name,
             company_id=company.id,
             status=H1BStatus.UNKNOWN,
-            source="waterfall_exhausted",
+            source="all_sources_empty",
             verified_at=datetime.now(),
         )
 

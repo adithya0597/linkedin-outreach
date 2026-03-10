@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from src.config.enums import SourcePortal
-from src.db.orm import JobPostingORM, ScanORM
+from src.db.orm import CompanyORM, JobPostingORM, ScanORM
 from src.models.job_posting import JobPosting
 from src.scrapers.persistence import persist_scan_results, posting_to_orm
 
@@ -136,6 +136,68 @@ class TestPersistScanResults:
         found, new, new_co = persist_scan_results(session, "p1", postings)
         assert found == 2
         assert new == 1
+
+    def test_new_company_gets_role_url_from_posting(self, session):
+        """New companies should get role_url and role from the first posting."""
+        postings = [
+            JobPosting(
+                company_name="FreshCo",
+                title="AI Engineer",
+                url="https://freshco.com/jobs/1",
+                source_portal=SourcePortal.STARTUP_JOBS,
+            )
+        ]
+        persist_scan_results(session, "startup.jobs", postings)
+        company = session.query(CompanyORM).filter_by(name="FreshCo").first()
+        assert company is not None
+        assert company.role_url == "https://freshco.com/jobs/1"
+        assert company.role == "AI Engineer"
+
+    def test_existing_company_backfills_empty_role_url(self, session):
+        """Existing company with no role_url gets backfilled from new posting."""
+        # Pre-create company with no URL
+        company = CompanyORM(name="OldCo", stage="To apply", role_url="", role="")
+        session.add(company)
+        session.flush()
+
+        postings = [
+            JobPosting(
+                company_name="OldCo",
+                title="ML Eng",
+                url="https://oldco.com/jobs/ml",
+                source_portal=SourcePortal.STARTUP_JOBS,
+            )
+        ]
+        persist_scan_results(session, "startup.jobs", postings)
+
+        session.refresh(company)
+        assert company.role_url == "https://oldco.com/jobs/ml"
+        assert company.role == "ML Eng"
+
+    def test_existing_company_with_role_url_not_overwritten(self, session):
+        """Existing company WITH role_url should NOT be overwritten."""
+        company = CompanyORM(
+            name="StableCo",
+            stage="To apply",
+            role_url="https://stableco.com/original",
+            role="Original Role",
+        )
+        session.add(company)
+        session.flush()
+
+        postings = [
+            JobPosting(
+                company_name="StableCo",
+                title="New Role",
+                url="https://stableco.com/new-posting",
+                source_portal=SourcePortal.STARTUP_JOBS,
+            )
+        ]
+        persist_scan_results(session, "startup.jobs", postings)
+
+        session.refresh(company)
+        assert company.role_url == "https://stableco.com/original"
+        assert company.role == "Original Role"
 
 
 # ---------------------------------------------------------------------------
