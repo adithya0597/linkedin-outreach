@@ -25,6 +25,7 @@ dependencies = [
     "alembic>=1.13",
     "python-dotenv>=1.0",
     "python-jobspy>=1.1",
+    "tenacity>=8.0",
 ]
 
 [project.optional-dependencies]

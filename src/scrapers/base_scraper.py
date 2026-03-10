@@ -3,9 +3,12 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta
 
+import httpx
+
 from src.config.enums import PortalTier, SourcePortal
 from src.models.job_posting import JobPosting
 from src.scrapers.rate_limiter import RateLimiter
+from src.scrapers.retry import scraper_retry
 
 
 class BaseScraper(ABC):
@@ -76,3 +79,15 @@ class BaseScraper(ABC):
             return False
 
         return True
+
+    async def _fetch_with_retry(self, url: str, **kwargs) -> httpx.Response:
+        """Fetch URL with retry logic. Opt-in helper for subclasses."""
+
+        @scraper_retry
+        async def _do_fetch() -> httpx.Response:
+            async with httpx.AsyncClient() as client:
+                response = await client.get(url, **kwargs)
+                response.raise_for_status()
+                return response
+
+        return await _do_fetch()
