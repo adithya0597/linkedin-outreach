@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from src.config.enums import SourcePortal
 from src.scrapers.ats_scraper import (
     ASHBY_SLUGS,
     GREENHOUSE_SLUGS,
@@ -11,11 +12,10 @@ from src.scrapers.ats_scraper import (
     GreenhouseScraper,
     _load_slugs_from_config,
 )
-from src.scrapers.hn_hiring_scraper import HNHiringScraper
-from src.scrapers.concurrent_runner import ConcurrentScanRunner, ScanResult, SCRAPER_TIMEOUT
-from src.scrapers.circuit_breaker import CircuitBreaker, CircuitState
 from src.scrapers.base_scraper import BaseScraper
-from src.config.enums import SourcePortal
+from src.scrapers.circuit_breaker import CircuitBreaker, CircuitState
+from src.scrapers.concurrent_runner import SCRAPER_TIMEOUT, ConcurrentScanRunner, ScanResult
+from src.scrapers.hn_hiring_scraper import HNHiringScraper
 
 
 class TestAshbySlugCleanup:
@@ -49,11 +49,11 @@ class TestHNHiringDirect:
     @pytest.mark.asyncio
     async def test_search_uses_algolia_directly(self):
         scraper = HNHiringScraper()
-        with patch.object(scraper, "_get_client") as mock_client, \
+        with patch.object(scraper, "_get_client"), \
              patch.object(scraper, "_search_hn_algolia", new_callable=AsyncMock) as mock_algolia:
             mock_algolia.return_value = []
 
-            results = await scraper.search(["AI"], days=30)
+            await scraper.search(["AI"], days=30)
 
             # Should call Algolia directly, not hnhiring.com
             mock_algolia.assert_called()
@@ -79,7 +79,7 @@ class TestConcurrentRunnerTimeout:
 
         # Use a very short timeout for testing
         with patch("src.scrapers.concurrent_runner.SCRAPER_TIMEOUT", 0.1):
-            results = await runner.run_all([SlowScraper()], query=None, filters={"days": 7})
+            await runner.run_all([SlowScraper()], query=None, filters={"days": 7})
 
         assert len(runner.results) == 1
         assert runner.results[0].outcome == "timeout"
@@ -101,7 +101,7 @@ class TestConcurrentRunnerCircuitBreaker:
                 return []
 
         wrapper = Wrapper()
-        results = await runner.run_all([wrapper], query=None, filters={"days": 7})
+        await runner.run_all([wrapper], query=None, filters={"days": 7})
 
         assert len(runner.results) == 1
         assert runner.results[0].outcome == "skipped"

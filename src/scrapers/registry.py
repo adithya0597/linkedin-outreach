@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from src.config.enums import PortalTier, SourcePortal
+from src.config.enums import PortalTier
 from src.scrapers.base_scraper import BaseScraper
 from src.scrapers.rate_limiter import RateLimiter
 
@@ -58,6 +58,7 @@ def build_default_registry() -> PortalRegistry:
       Tier D — New Sources: JobSpy, HN Hiring
     """
     from src.scrapers.ats_scraper import AshbyScraper, GreenhouseScraper
+    from src.scrapers.builtin_scraper import BuiltInPatchrightScraper
     from src.scrapers.hn_hiring_scraper import HNHiringScraper
     from src.scrapers.homepage_first_scraper import (
         HiringCafeHomepageFirstScraper,
@@ -70,11 +71,10 @@ def build_default_registry() -> PortalRegistry:
         AIJobsScraper,
         TopStartupsScraper,
     )
+    from src.scrapers.jobboardai_scraper import JobBoardAIPatchrightScraper
     from src.scrapers.jobspy_scraper import JobSpyScraper
     from src.scrapers.linkedin_email_ingest import LinkedInAlertScraper
     from src.scrapers.linkedin_scraper import LinkedInPatchrightScraper
-    from src.scrapers.builtin_scraper import BuiltInPatchrightScraper
-    from src.scrapers.jobboardai_scraper import JobBoardAIPatchrightScraper
     from src.scrapers.patchright_scraper import (
         JobrightPatchrightScraper,
         TrueUpPatchrightScraper,

@@ -1,10 +1,11 @@
 """Tests for Built In and JobBoard AI Patchright scrapers."""
-import pytest
 from unittest.mock import AsyncMock, patch
 
+import pytest
+
+from src.config.enums import SourcePortal
 from src.scrapers.builtin_scraper import BuiltInPatchrightScraper
 from src.scrapers.jobboardai_scraper import JobBoardAIPatchrightScraper
-from src.config.enums import SourcePortal
 
 
 class TestBuiltInScraper:

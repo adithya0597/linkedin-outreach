@@ -8,9 +8,9 @@ import pytest
 from src.config.enums import SourcePortal
 from src.models.job_posting import JobPosting
 from src.scrapers.linkedin_scraper import (
-    LinkedInPatchrightScraper,
     MAX_PAGES,
     MAX_SCANS_PER_DAY,
+    LinkedInPatchrightScraper,
 )
 
 
@@ -168,7 +168,7 @@ class TestLinkedInSearchFlow:
             mock_beh = AsyncMock()
             mock_new_page.return_value = (mock_page, mock_beh)
 
-            results = await scraper.search(["AI Engineer"], days=7)
+            await scraper.search(["AI Engineer"], days=7)
 
             # Should have navigated to jobs homepage first
             calls = mock_page.goto.call_args_list

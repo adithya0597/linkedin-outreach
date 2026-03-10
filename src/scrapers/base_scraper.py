@@ -64,7 +64,7 @@ class BaseScraper(ABC):
         """Return True if the scraper is operational."""
         return True
 
-    async def close(self) -> None:
+    async def close(self) -> None:  # noqa: B027
         """Clean up scraper resources. Override in subclasses if needed."""
         pass
 
