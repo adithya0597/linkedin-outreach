@@ -25,7 +25,13 @@ class TestValidateApiKeys:
         assert all(r.passed for r in results)
 
     def test_all_keys_missing(self):
-        with patch.dict(os.environ, {}, clear=True):
+        mock_settings = Settings(
+            _env_file=None,
+            notion_api_key="",
+            notion_database_id="",
+            apify_token="",
+        )
+        with patch("src.config.settings.get_settings", return_value=mock_settings):
             results = validate_api_keys()
         assert len(results) == 3
         assert not any(r.passed for r in results)

@@ -1,6 +1,5 @@
 """Startup validation checks for API keys, config files, and system dependencies."""
 import logging
-import os
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -14,18 +13,21 @@ class CheckResult:
     severity: str = "warning"  # "warning" or "error"
 
 def validate_api_keys() -> list[CheckResult]:
+    from src.config.settings import get_settings
+    settings = get_settings()
+
+    checks = [
+        ("notion_api_key", settings.notion_api_key, "Notion API", "error"),
+        ("notion_database_id", settings.notion_database_id, "Notion Database ID", "error"),
+        ("apify_token", settings.apify_token, "Apify", "warning"),
+    ]
     results = []
-    for key, label in [
-        ("NOTION_API_KEY", "Notion API"),
-        ("NOTION_DATABASE_ID", "Notion Database ID"),
-        ("APIFY_TOKEN", "Apify"),
-    ]:
-        val = os.environ.get(key)
+    for name, val, label, sev in checks:
         results.append(CheckResult(
-            name=f"api_key_{key.lower()}",
+            name=f"api_key_{name}",
             passed=bool(val),
             message=f"{label} key {'found' if val else 'missing'}",
-            severity="error" if not val and key.startswith("NOTION") else "warning",
+            severity=sev if not val else "warning",
         ))
     return results
 

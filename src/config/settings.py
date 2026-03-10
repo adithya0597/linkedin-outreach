@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     notion_database_id: str = "0c412604-a409-47ab-8c04-29f112c2c683"
 
     # Apify
-    apify_api_key: str = ""
+    apify_token: str = ""
 
     # LLM (thin personalizer only)
     openai_api_key: str = ""
@@ -32,7 +32,7 @@ class Settings(BaseSettings):
     notion_requests_per_second: float = 3.0
     linkedin_searches_per_day: int = 100
 
-    model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
+    model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "extra": "ignore"}
 
 
 @lru_cache
