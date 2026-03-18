@@ -255,9 +255,9 @@ SAMPLE_MARKDOWN = """# Startup Target List
 - **Salary:** $160,000 - $200,000
 - **Why Fit:** Graph RAG + Neo4j expert
 - **Best Stats:** 138-node semantic graph, 90% automation
-- **Action:** Connect with Simon Suo
+- **Action:** Connect with John Doe
 - **H1B:** Confirmed via Frog Hire
-- **LinkedIn Contact:** Simon Suo (CTO)
+- **LinkedIn Contact:** John Doe (CTO)
 - **Fit Score:** 92
 
 ### 2. ~~Harvey AI~~ ❌
@@ -304,9 +304,9 @@ class TestParseStartupTargetList:
         assert c["salary_range"] == "$160,000 - $200,000"
         assert c["why_fit"] == "Graph RAG + Neo4j expert"
         assert c["best_stats"] == "138-node semantic graph, 90% automation"
-        assert c["action"] == "Connect with Simon Suo"
+        assert c["action"] == "Connect with John Doe"
         assert c["h1b_status"] == "Confirmed"
-        assert "Simon Suo" in c["hiring_manager"]
+        assert "John Doe" in c["hiring_manager"]
         assert c["fit_score"] == 92.0
         assert c["is_disqualified"] is False
 

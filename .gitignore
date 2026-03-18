@@ -70,3 +70,4 @@ config/promotion_history.json
 
 # Temp files
 filter-paths.txt
+TODAY*.md
