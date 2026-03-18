@@ -130,7 +130,7 @@ class EmailOutreach:
                 "Happy to share specifics if there's interest.",
                 "",
                 "Best,",
-                "Bala Adithya Malaraju",
+                os.environ.get("CANDIDATE_NAME", "Your Name"),
             ]
         )
 

@@ -21,7 +21,7 @@ def sync_notion(
     from src.integrations.notion_sync import NotionCRM
 
     api_key = os.getenv("NOTION_API_KEY", "")
-    database_id = os.getenv("NOTION_DATABASE_ID", "0c412604-a409-47ab-8c04-29f112c2c683")
+    database_id = os.getenv("NOTION_DATABASE_ID", "")
 
     if not api_key and not dry_run:
         console.print("[red]NOTION_API_KEY not set in environment.[/red]")
@@ -78,7 +78,7 @@ def sync_notion_full(
     from src.integrations.notion_bidirectional import NotionBidirectionalSync
 
     api_key = os.getenv("NOTION_API_KEY", "")
-    db_id = os.getenv("NOTION_DATABASE_ID", "0c412604-a409-47ab-8c04-29f112c2c683")
+    db_id = os.getenv("NOTION_DATABASE_ID", "")
 
     if not api_key and not dry_run:
         console.print("[red]NOTION_API_KEY not set in environment.[/red]")
@@ -171,7 +171,7 @@ def sync_outreach(
     from src.integrations.outreach_sync import OutreachNotionSync
 
     api_key = os.getenv("NOTION_API_KEY", "")
-    db_id = os.getenv("NOTION_DATABASE_ID", "0c412604-a409-47ab-8c04-29f112c2c683")
+    db_id = os.getenv("NOTION_DATABASE_ID", "")
 
     if not api_key and not dry_run:
         console.print("[red]NOTION_API_KEY not set in environment.[/red]")

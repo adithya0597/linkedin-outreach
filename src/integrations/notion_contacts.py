@@ -266,7 +266,7 @@ class NotionContactSync(NotionAPIClient):
         """Get applications database ID from config or env."""
         return os.environ.get(
             "NOTION_APPLICATIONS_DB_ID",
-            "0c412604-a409-47ab-8c04-29f112c2c683",
+            "",
         )
 
     # _request inherited from NotionAPIClient

@@ -1,4 +1,4 @@
-"""Domain match scoring — bonus points for companies matching Adithya's experience domains."""
+"""Domain match scoring — bonus points for companies matching candidate's experience domains."""
 
 from __future__ import annotations
 

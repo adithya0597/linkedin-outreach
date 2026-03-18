@@ -9,7 +9,7 @@ Scan 19 job sources across 4 tiers for new AI/ML engineer roles using three-tier
 
 ## Context
 
-Scanning for Bala Adithya Malaraju, AI Engineer on F1 visa requiring H1B sponsorship. Specializes in Graph RAG, Enterprise LLM pipelines, healthcare data. Goal: find AI-native startups matching strict criteria.
+Scanning for the candidate, AI Engineer who requires work authorization/visa sponsorship. Specializes in Graph RAG, Enterprise LLM pipelines, healthcare data. Goal: find AI-native startups matching strict criteria.
 
 ## Target Criteria
 

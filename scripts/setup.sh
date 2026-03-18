@@ -5,7 +5,7 @@
 
 set -euo pipefail
 
-PROJECT_DIR="/Users/adithya/cowork-stuff/lineked outreach"
+PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 SCRIPTS_DIR="${PROJECT_DIR}/scripts"
 CLAUDE_DIR="${PROJECT_DIR}/.claude"
 SETTINGS_FILE="${CLAUDE_DIR}/settings.local.json"

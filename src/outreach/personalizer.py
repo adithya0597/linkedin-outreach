@@ -1,4 +1,4 @@
-"""Rule-based outreach personalization — maps company attributes to Adithya's experience."""
+"""Rule-based outreach personalization — maps company attributes to candidate's experience."""
 
 from __future__ import annotations
 
@@ -120,7 +120,7 @@ _DOMAIN_KEYWORDS: dict[str, list[str]] = {
 
 
 class OutreachPersonalizer:
-    """Maps company attributes to Adithya's experience for personalized outreach."""
+    """Maps company attributes to candidate's experience for personalized outreach."""
 
     def __init__(self):
         self.engine = OutreachTemplateEngine()

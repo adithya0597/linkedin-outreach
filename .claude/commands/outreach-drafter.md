@@ -9,12 +9,12 @@ Generate a complete LinkedIn outreach package for a target contact, following al
 
 ## Context
 
-You are drafting LinkedIn outreach for Bala Adithya Malaraju, an AI Engineer at Infinite Computer Solutions (Irving, TX). **He is on an F1 student visa and requires H1B sponsorship.** Note: Companies are sourced using a three-tier H1B system — startup portal companies (Tier 3: YC, Wellfound, startup.jobs, Hiring Cafe, topstartups.io) were included without H1B verification, general portal/LinkedIn companies (Tier 1/2) were cross-checked on Frog Hire (primary) → H1BGrader/MyVisaJobs (secondary) and included unless explicitly "no sponsorship." His key differentiators:
+You are drafting LinkedIn outreach for the candidate, an AI Engineer at [current employer] [your location]. **The candidate requires work authorization/visa sponsorship.** Note: Companies are sourced using a three-tier H1B system — startup portal companies (Tier 3: YC, Wellfound, startup.jobs, Hiring Cafe, topstartups.io) were included without H1B verification, general portal/LinkedIn companies (Tier 1/2) were cross-checked on Frog Hire (primary) → H1BGrader/MyVisaJobs (secondary) and included unless explicitly "no sponsorship." Key differentiators:
 - **Graph RAG:** 138-node semantic knowledge graph
 - **Enterprise LLM:** 90% automated code translation across 27 microservices (mainframe → cloud)
 - **Healthcare:** 300+ table CDC pipelines with 99.9% data integrity
 - **Agentic AI:** 26,000+ orders processed via agentic pipeline
-- **Portfolio:** https://bala-adithya-malaraju.vercel.app/
+- **Portfolio:** https://your-portfolio.example.com/
 
 ## Required Inputs
 

@@ -1,19 +1,72 @@
+# Environment and secrets
+.env
+.env.*
+!.env.example
 .mcp.json
-__pycache__/
-*.pyc
-*.pyo
-.coverage
-htmlcov/
+
+# Personal data files
+CLAUDE.md
+PROJECT_GUIDE.md
+HANDOFF.md
+Tier1_Outreach_Master.md
+Message_Templates.md
+Startup_Target_List.md
+Contact_Enrichment*.md
+COWORK_SWARM_PROMPT.md
+COWORK_CHEATSHEET.md
+Anti_Bot_Intelligence_Report.md
+TODO.md
+setup_claude_code.sh
+*.docx
+*.xlsx
+
+# Personal directories
+applications/
+archive/
+files/
+tasks/
+data/archive/
+data/mcp_scans/
+docs/
+
+# Database
 data/*.db
 data/*.db-shm
 data/*.db-wal
 data/notion_sync_state.json
-data/archive/
-.env
-.env.*
+
+# Claude Code local state
+.claude/settings.local.json
+.claude/worktrees/
+.claude/projects/
+
+# Skills (contain personal context)
+skills/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
 *.egg-info/
 dist/
 build/
-skill-optimization-workspace/
-.claude/worktrees/
+.venv/
+
+# Testing
+.coverage
+htmlcov/
+.pytest_cache/
+
+# OS files
+.DS_Store
+.~lock.*#
+
+# Tools
 .playwright-mcp/
+skill-optimization-workspace/
+
+# Config with personal activity data
+config/promotion_history.json
+
+# Temp files
+filter-paths.txt

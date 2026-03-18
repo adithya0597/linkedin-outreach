@@ -11,7 +11,7 @@ Find the right person to contact at a target company for LinkedIn outreach.
 
 After a company passes validation, the next step is identifying who to reach out to. The ideal contact is someone who either makes or influences hiring decisions for AI/ML engineering roles. The closer the connection degree, the better.
 
-**H1B Context:** Adithya is on an F1 visa requiring H1B sponsorship. Companies are sourced via three-tier H1B system: Tier 3 (startup portals: YC, Wellfound, etc.) = no H1B filter applied; Tier 1/2 (LinkedIn + general portals) = cross-checked on Frog Hire (primary) → H1BGrader/MyVisaJobs. When researching contacts, look for signals the company sponsors visas (listed on Frog Hire, international employees, "visa sponsorship" on job posts).
+**H1B Context:** The candidate requires work authorization/visa sponsorship. Companies are sourced via three-tier H1B system: Tier 3 (startup portals: YC, Wellfound, etc.) = no H1B filter applied; Tier 1/2 (LinkedIn + general portals) = cross-checked on Frog Hire (primary) → H1BGrader/MyVisaJobs. When researching contacts, look for signals the company sponsors visas (listed on Frog Hire, international employees, "visa sponsorship" on job posts).
 
 ## Search Priority (who to find, in order)
 
@@ -80,7 +80,7 @@ Rank the contacts found by outreach priority:
 
 ### Background
 - Previous: [Key previous roles]
-- Education: [School — note if shared with Adithya]
+- Education: [School — note if shared with the candidate]
 
 ### Communication Style
 [Formal/Casual/Technical] — based on [evidence from posts]

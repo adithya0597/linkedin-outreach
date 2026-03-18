@@ -13,7 +13,7 @@ class Settings(BaseSettings):
 
     # Notion
     notion_api_key: str = ""
-    notion_database_id: str = "0c412604-a409-47ab-8c04-29f112c2c683"
+    notion_database_id: str = ""
 
     # Apify
     apify_token: str = ""
@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     anthropic_api_key: str = ""
 
     # Chrome
-    chrome_user_data_dir: str = "/Users/adithya/Library/Application Support/Google/Chrome"
+    chrome_user_data_dir: str = ""
 
     # Timezone
     timezone: str = "America/Chicago"

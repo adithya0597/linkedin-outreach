@@ -5,7 +5,7 @@ description: "**Startup Company Validator**: Validates whether a company meets s
 
 # Company Validator
 
-Quickly validate whether a company meets the targeting criteria for Bala Adithya's AI startup job search.
+Quickly validate whether a company meets the targeting criteria for your AI startup job search.
 
 ## Target Criteria (ALL must pass)
 
